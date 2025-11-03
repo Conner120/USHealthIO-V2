@@ -2,18 +2,90 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
-  output = "../generated/client"
+  output   = "../generated/client"
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
+model InsuranceCompany {
+  id               String                @id @db.Char(50)
+  displayName      String                @db.Char(200)
+  legalName        String                @db.Char(200)
+  subsidiariesName String[]              @db.Char(200)
+  createdAt        DateTime              @default(now())
+  createdBy        String                @db.Char(50)
+  updatedAt        DateTime              @updatedAt
+  updatedBy        String                @db.Char(50)
+  archivedBy       String?               @db.Char(50)
+  archivedAt       DateTime?
+  scanSources      InsuranceScanSource[]
+}
+
+enum InsuranceScanSourceType {
+  INDEX_URL
+  MANUAL
+  // https://www.cigna.com/static/mrf/latest.json
+  INDEX_API_JSON
+  //  https://healthy.kaiserpermanente.org/pricing/innetwork/2025-11_List.txt https://healthy.kaiserpermanente.org/pricing/outofnetwork/sc/2025-11-01_KFHP_SCCOM-40513ca0380003-1_allowed-amounts.zip
+  API_TXT
+  KAISER_PERMANENTE_TXT_IN_NETWORK
+  KAISER_PERMANENTE_TXT_OUT_OF_NETWORK
+  UNITED_HEATHCARE_BLOB_API
+  AETNA_BLOB_API
+  HCSC_SCRAPER
+  CIGNA_SCRAPER
+  // https://www.molinahealthcare.com/marketplace/ky/en-us/About/compinfo/PricingTransparency
+  MOLINA_HEALTHCARE_SCRAPER
+}
+
+model InsuranceScanSource {
+  id                 String                  @id @db.Char(50)
+  sourceType         InsuranceScanSourceType
+  InsuranceCompany   InsuranceCompany?       @relation(fields: [insuranceCompanyId], references: [id])
+  insuranceCompanyId String?                 @db.Char(50)
+  options            Json?
+  createdAt          DateTime                @default(now())
+  createdBy          String                  @db.Char(50)
+  updatedAt          DateTime                @updatedAt
+  updatedBy          String                  @db.Char(50)
+  archivedBy         String?                 @db.Char(50)
+  archivedAt         DateTime?
+  InsuranceScanJob   InsuranceScanJob[]
+}
+
+enum InsuranceScanJobStatus {
+  PENDING
+  DOWNLOADING
+  PARSING
+  COMPLETED
+  FAILED
+}
+
+model InsuranceScanJob {
+  id                    String                 @id @db.Char(50)
+  insuranceScanSource   InsuranceScanSource?   @relation(fields: [insuranceScanSourceId], references: [id])
+  insuranceScanSourceId String?                @db.Char(50)
+  status                InsuranceScanJobStatus @default(PENDING)
+  statusTime            DateTime               @default(now())
+  paylaod               Json?
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime               @default(now())
+  createdBy             String                 @db.Char(50)
+  updatedAt             DateTime               @updatedAt
+  updatedBy             String                 @db.Char(50)
+  InsuranceScanSteps    InsuranceScanSteps[]
+}
+
+model InsuranceScanSteps {
+  id                 String           @id @db.Char(50)
+  name               String           @db.Char(100)
+  description        String?          @db.Char(500)
+  sequenceOrder      Int
+  InsuranceScanJob   InsuranceScanJob @relation(fields: [insuranceScanJobId], references: [id])
+  insuranceScanJobId String
 }
