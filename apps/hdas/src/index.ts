@@ -1,6 +1,6 @@
-import { Kafka, type EachMessagePayload } from 'kafkajs';
+import {type EachMessagePayload, Kafka} from 'kafkajs';
 import {type TaskPayload, taskRoot} from "./tasks/taskRoot.ts";
-import { redis } from "bun";
+import {redis} from "bun";
 import {createId} from "@paralleldrive/cuid2";
 
 export const kafka = new Kafka({
@@ -9,21 +9,22 @@ export const kafka = new Kafka({
 });
 
 
-
-const consumer = kafka.consumer({ groupId: 'hdas-parser' });
+const consumer = kafka.consumer({groupId: 'hdas-parser'});
 const runConsumer = async () => {
     await consumer.connect();
     console.log('Consumer connected');
-    await consumer.subscribe({ topic: 'file-jobs', fromBeginning: true }); // Subscribe to 'in_network', start from the beginning
+    await consumer.subscribe({topic: 'insurance-source-scan-jobs', fromBeginning: true}); // Subscribe to 'in_network', start from the beginning
     await consumer.run({
-        eachMessage: async ({ topic, partition, message }: EachMessagePayload) => {
-            let job = message.value ? JSON.parse(message.value.toString())  as  TaskPayload: null;
+        eachMessage: async ({topic, partition, message}: EachMessagePayload) => {
+            console.log(topic, partition)
+            let job = message.value ? JSON.parse(message.value.toString()) as TaskPayload : null;
             if (!job) {
                 console.error('Invalid message format:', message);
                 return;
             }
+            console.log('Received message:', job);
             await redis.hset('NODES', processId, job.id);
-            await taskRoot(message.value ? JSON.parse(message.value.toString()) : { });
+            await taskRoot(topic, message.value ? JSON.parse(message.value.toString()) : {});
             await redis.hset('NODES', processId, "IDLE");
         },
     });

@@ -1,8 +1,9 @@
 import {prisma} from "@repo/database";
-import InsuranceCompanyTable from "@/components/tables/insuranceCompanyTable";
+import InsuranceCompanyTable from "@/app/insurance/companies/_components/insuranceCompanyTable";
 
 export default async function Page() {
     const users = await prisma.insuranceCompany.findMany();
+    console.log(users)
     return (
         <div>
             <InsuranceCompanyTable insuranceCompanies={users}/>

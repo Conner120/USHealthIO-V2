@@ -20,5 +20,9 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "@tanstack/react-form": "^1.23.8",
+    "sonner": "^2.0.7"
+  }
 }

@@ -17,14 +17,15 @@ import {ChevronDown, PlusIcon} from "lucide-react"
 
 import {Button} from "@/components/ui/button"
 import {Input} from "@/components/ui/input"
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from "@/components/ui/table"
+import Link from "next/link";
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
     DropdownMenuContent,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from "@/components/ui/table"
-import Link from "next/link";
+    DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import {Checkbox} from "@/components/ui/checkbox";
 
 type DataTableProps<TData, TValue> = {
     columns: ColumnDef<TData, TValue>[]
@@ -35,6 +36,8 @@ type DataTableProps<TData, TValue> = {
     filterPlaceholder?: string
     createLink?: string
     createName?: string
+    enableSelection?: boolean
+    action?: (row: TData) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -43,7 +46,9 @@ export function DataTable<TData, TValue>({
                                              filterColumn,
                                              filterPlaceholder = "Filter...",
                                              createLink,
-                                             createName
+                                             createName,
+                                             enableSelection = false,
+                                             action
                                          }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -52,10 +57,34 @@ export function DataTable<TData, TValue>({
     const [columnVisibility, setColumnVisibility] =
         React.useState<VisibilityState>({})
     const [rowSelection, setRowSelection] = React.useState({})
-
+    const columnsCombined = React.useMemo(() => {
+        const selectColumn: ColumnDef<TData, TValue> = {
+            id: "select",
+            header: ({table}) => (
+                <Checkbox
+                    checked={
+                        table.getIsAllPageRowsSelected() ||
+                        (table.getIsSomePageRowsSelected() && "indeterminate")
+                    }
+                    onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                    aria-label="Select all"
+                />
+            ),
+            cell: ({row}) => (
+                <Checkbox
+                    checked={row.getIsSelected()}
+                    onCheckedChange={(value) => row.toggleSelected(!!value)}
+                    aria-label="Select row"
+                />
+            ),
+            enableSorting: false,
+            enableHiding: false,
+        };
+        return enableSelection ? [selectColumn, ...columns] : columns;
+    }, [columns])
     const table = useReactTable({
         data,
-        columns,
+        columns: columnsCombined,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
@@ -93,7 +122,7 @@ export function DataTable<TData, TValue>({
                 {/* Create button */}
                 {
                     createLink && (
-                        <Button variant="default"
+                        <Button variant="outline"
                                 className={`${createLink ? 'ml-auto' : 'ml-1'}`}
                                 asChild
                         >
@@ -102,31 +131,6 @@ export function DataTable<TData, TValue>({
                             </Link>
                         </Button>)
                 }
-                {/* Column visibility toggle */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className={createLink ? "ml-1" : "ml-auto"}>
-                            Columns <ChevronDown className="ml-1 h-4 w-4"/>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        {table
-                            .getAllColumns()
-                            .filter((column) => column.getCanHide())
-                            .map((column) => (
-                                <DropdownMenuCheckboxItem
-                                    key={column.id}
-                                    className="capitalize"
-                                    checked={column.getIsVisible()}
-                                    onCheckedChange={(value) =>
-                                        column.toggleVisibility(!!value)
-                                    }
-                                >
-                                    {column.id}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
 
             </div>
 
@@ -156,6 +160,13 @@ export function DataTable<TData, TValue>({
                                 <TableRow
                                     key={row.id}
                                     data-state={row.getIsSelected() && "selected"}
+                                    onClick={() => {
+                                        if (action) {
+                                            action(row.original);
+                                        } else {
+                                            row.toggleSelected();
+                                        }
+                                    }}
                                 >
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell key={cell.id}>
@@ -188,6 +199,32 @@ export function DataTable<TData, TValue>({
                     {table.getFilteredRowModel().rows.length} row(s) selected.
                 </div>
                 <div className="space-x-2">
+                    {/*Column visibility toggle*/}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm"
+                            >
+                                Columns <ChevronDown className="ml-1 h-4 w-4"/>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {table
+                                .getAllColumns()
+                                .filter((column) => column.getCanHide())
+                                .map((column) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={column.id}
+                                        className="capitalize"
+                                        checked={column.getIsVisible()}
+                                        onCheckedChange={(value) =>
+                                            column.toggleVisibility(!!value)
+                                        }
+                                    >
+                                        {column.id}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                         variant="outline"
                         size="sm"

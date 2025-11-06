@@ -43,7 +43,7 @@ const data = {
             items: [
                 {
                     title: "Insurance Companies",
-                    url: "#",
+                    url: "/insurance/companies",
 
                 },
                 {
@@ -52,7 +52,7 @@ const data = {
                 },
                 {
                     title: "Setup Insurance Companies",
-                    url: "#",
+                    url: "/insurance/companies/new",
                 }
             ],
         },

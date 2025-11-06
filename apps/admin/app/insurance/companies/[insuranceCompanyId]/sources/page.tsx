@@ -1,45 +1,36 @@
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
-import {Switch} from "@/components/ui/switch";
+"use server"
+import {
+    getInsuranceCompanySources
+} from "@/app/insurance/companies/[insuranceCompanyId]/sources/_lib/getInsuranceCompany";
+import SourcesForm from "@/app/insurance/companies/[insuranceCompanyId]/sources/_components/sourcesForm";
+import {Button} from "@/components/ui/button";
+import Link from "next/link";
 
-export default function page() {
+export default async function page({params}: { params: { insuranceCompanyId: string } }) {
+    const {insuranceCompanyId} = await params;
+    const insuranceCompany = await getInsuranceCompanySources(insuranceCompanyId);
+    if (!insuranceCompany) {
+        return <div>Insurance company not found</div>
+    }
     return (
         <main className="flex-1">
-            <div className="space-y-6 px-8 py-6">
-                <div>
-                    <h2 className="text-2xl font-bold">Notification</h2>
-                    <p className="text-muted-foreground">Manage how you receive notifications</p>
+            <div className="space-y-6 px-4 py-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h2 className="text-2xl font-bold">Import Sources</h2>
+                        <p className="text-muted-foreground">Manage import sources and their settings</p>
+                    </div>
+                    <Button asChild>
+                        <Link href={`/insurance/companies/${insuranceCompanyId}/sources/new`}>
+                            + Create Import Source
+                        </Link>
+                    </Button>
                 </div>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Email Notifications</CardTitle>
-                        <CardDescription>Choose which emails you want to receive</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium">Marketing emails</p>
-                                <p className="text-sm text-muted-foreground">Receive updates about new features</p>
-                            </div>
-                            <Switch/>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium">Security alerts</p>
-                                <p className="text-sm text-muted-foreground">Get notified of suspicious activity</p>
-                            </div>
-                            <Switch defaultChecked/>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium">Weekly digest</p>
-                                <p className="text-sm text-muted-foreground">Receive a summary of your activity</p>
-                            </div>
-                            <Switch defaultChecked/>
-                        </div>
-                    </CardContent>
-                </Card>
+                {insuranceCompany.scanSources.map((source => (
+                    <SourcesForm key={source.id} currentValue={source}/>
+                )))}
             </div>
         </main>
+
     )
 }

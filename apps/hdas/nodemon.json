@@ -1,4 +1,7 @@
 {
-  "watch": ["src"],
+  "watch": [
+    "src"
+  ],
+  "exec": "bun src/index.ts",
   "ext": "ts"
 }

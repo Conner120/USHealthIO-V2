@@ -1,20 +1,33 @@
 "use server"
 import {withAuth} from "@workos-inc/authkit-nextjs";
-import {prisma} from "@repo/database";
+import {$Enums, prisma} from "@repo/database";
 import {createId} from "@paralleldrive/cuid2";
+import {revalidatePath} from "next/cache";
 
-export async function saveToDatabase({displayName, legalName}: {
-    displayName: string
-    legalName: string
+export async function saveToDatabase(insuranceCompanyId: string, {
+    name,
+    sourceType,
+    notes,
+    options
+}: {
+    name: string
+    sourceType: $Enums.InsuranceScanSourceType
+    notes: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    options: any
 }) {
     const {user} = await withAuth({ensureSignedIn: true});
-    await prisma.insuranceCompany.create({
+    await prisma.insuranceScanSource.create({
         data: {
-            id: `ins_${createId()}`,
-            displayName,
-            legalName,
+            id: `inssr_${createId()}`,
+            name: name,
+            sourceType,
+            notes,
+            options,
+            insuranceCompanyId,
             createdBy: user.id,
             updatedBy: user.id
         }
     })
+    revalidatePath(`/insurance/companies/${insuranceCompanyId}`)
 }
