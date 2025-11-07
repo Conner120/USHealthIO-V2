@@ -12,7 +12,7 @@ RUN bun add --global turbo
 
 # Prune dependencies for only this app
 ARG APP_NAME=hdas
-RUN turbo prune --scope=./apps/${APP_NAME} --dockerfile=./Dockerfile --base=base --include-deps
+RUN turbo prune --scope=./apps/${APP_NAME} -f ./Dockerfile --base=base --include-deps
 ### --- Dependencies stage ---
 FROM oven/bun:1.3 AS dependencies
 WORKDIR /repo
