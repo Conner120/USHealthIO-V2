@@ -19,4 +19,4 @@ RUN bun install --frozen-lockfile
 ### --- Production stage ---
 FROM oven/bun:1.3 AS production
 ARG APP_NAME=hdas
-COPY --from=base /out ./out
+COPY --from=base ./out ./out
