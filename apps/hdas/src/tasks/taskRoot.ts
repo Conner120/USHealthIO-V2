@@ -5,11 +5,9 @@ let t = BigInt(0);
 export async function taskRoot(topic: String, taskPayload: TaskPayload, heartbeat?: () => Promise<void>) {
     if (topic === 'in-network-file') {
         console.log("Processing in-network file with payload:", taskPayload);
-        let data = await fetch(taskPayload.payload.url);
-        if (data.status !== 200) {
-            throw new Error(`Failed to fetch in-network file, status code: ${data.status}`);
-        }
-        let size = (await data.body?.bytes())?.length?.toString();
+        let data = await $`curl -O ${taskPayload.payload.url} -o /tmp/${taskPayload.id}`;
+        // get size of downloaded file
+        let size = (await $`du -sb /tmp/${taskPayload.id}`).stdout.toString().split("\t")[0];
         if (!size) {
             throw new Error("Failed to get size of downloaded in-network file");
         }
