@@ -12,11 +12,17 @@ RUN bun add --global turbo
 # Prune dependencies for only this app
 ARG APP_NAME=hdas
 RUN turbo prune --scope=${APP_NAME}
-### --- Dependencies stage ---
-FROM oven/bun:1.3 AS dependencies
-COPY --from=base /out/apps/${APP_NAME} ./
-RUN bun install --frozen-lockfile
-### --- Production stage ---
-FROM oven/bun:1.3 AS production
-ARG APP_NAME=hdas
-COPY --from=base ./out ./out
+# Move pruned files to /app
+RUN mkdir /app && mv out/* /app
+WORKDIR /app
+# Install dependencies
+RUN bun install --production
+### --- Runtime stage ---
+FROM oven/bun:1.3-slim AS runtime
+# Copy only necessary files from base stage
+COPY --from=base /app /app
+WORKDIR /app/apps/hdas
+# Expose necessary ports
+EXPOSE 3000
+# Start the application
+CMD ["bun", "run", "start"]
