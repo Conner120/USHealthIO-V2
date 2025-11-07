@@ -33,7 +33,6 @@ export async function importCignaData(data: any, heartbeat?: () => Promise<void>
     if (indexFile.status !== 200) {
         throw new Error(`Failed to fetch Cigna MRF file, status code: ${indexFile.status}`);
     }
-    fs.writeFileSync('./cigna_index_file.json', JSON.stringify(indexFile.data, null, 2));
     const filesToImport: {
         reportingPlans: string[],
         file: {
