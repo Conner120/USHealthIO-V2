@@ -33,6 +33,7 @@ export async function importCignaData(data: any, heartbeat?: () => Promise<void>
     if (indexFile.status !== 200) {
         throw new Error(`Failed to fetch Cigna MRF file, status code: ${indexFile.status}`);
     }
+    fs.writeFileSync('./cigna_index_file.json', JSON.stringify(indexFile.data, null, 2));
     const filesToImport: {
         reportingPlans: string[],
         file: {
@@ -47,34 +48,40 @@ export async function importCignaData(data: any, heartbeat?: () => Promise<void>
         let plans: string[] = [];
         //parse allowed amount files
         if (fileReport.allowed_amount_file) {
-            let index = filesToImportIndex[fileReport.allowed_amount_file.url] = filesToImport.length;
+            if (fileReport.allowed_amount_file.location.includes('cigna-health-life-insurance-company_empty_allowed-amounts.json')) {
+                console.log("Skipping empty allowed amount file:", fileReport.allowed_amount_file.location);
+                continue;
+            }
+            let index = filesToImportIndex[fileReport.allowed_amount_file.location] = filesToImport.length;
             if (filesToImport[index]) {
                 filesToImport[index].reportingPlans.push(...plans);
             } else {
+                console.log("Pushing new allowed amount file:", fileReport.allowed_amount_file);
                 filesToImport.push({
                     reportingPlans: plans,
                     file: {
-                        url: fileReport.allowed_amount_file.url,
+                        url: fileReport.allowed_amount_file.location,
                         type: "allowed_amount"
                     }
                 });
-                filesToImportIndex[fileReport.allowed_amount_file.url] = filesToImport.length - 1;
+                filesToImportIndex[fileReport.allowed_amount_file.location] = filesToImport.length - 1;
             }
         }
         if (fileReport.in_network_files) {
             for (const inNetworkFile of fileReport.in_network_files) {
-                let index = filesToImportIndex[inNetworkFile.url] = filesToImport.length;
+                let index = filesToImportIndex[inNetworkFile.location] = filesToImport.length;
                 if (filesToImport[index]) {
                     filesToImport[index].reportingPlans.push(...plans);
                 } else {
+                    console.log("Pushing new in-network file:", inNetworkFile);
                     filesToImport.push({
                         reportingPlans: plans,
                         file: {
-                            url: inNetworkFile.url,
+                            url: inNetworkFile.location,
                             type: "in_network"
                         }
                     });
-                    filesToImportIndex[inNetworkFile.url] = filesToImport.length - 1;
+                    filesToImportIndex[inNetworkFile.location] = filesToImport.length - 1;
                 }
             }
         }
@@ -87,9 +94,12 @@ export async function importCignaData(data: any, heartbeat?: () => Promise<void>
             topic: 'in-network-file',
             messages: chunk.map(fileToImport => ({
                 value: JSON.stringify({
-                    sourceType: 'CIGNA_INDEX_API',
-                    url: fileToImport.file.url,
-                    reportingPlans: fileToImport.reportingPlans,
+                    topic: 'in-network-file',
+                    payload: {
+                        sourceType: 'CIGNA_INDEX_API',
+                        url: fileToImport.file.url,
+                        reportingPlans: fileToImport.reportingPlans,
+                    }
                 }),
             })),
         });
@@ -101,9 +111,12 @@ export async function importCignaData(data: any, heartbeat?: () => Promise<void>
             topic: 'allowed-amount',
             messages: chunk.map(fileToImport => ({
                 value: JSON.stringify({
-                    sourceType: 'CIGNA_INDEX_API',
-                    url: fileToImport.file.url,
-                    reportingPlans: fileToImport.reportingPlans,
+                    topic: 'allowed-amount',
+                    payload: {
+                        sourceType: 'CIGNA_INDEX_API',
+                        url: fileToImport.file.url,
+                        reportingPlans: fileToImport.reportingPlans,
+                    }
                 }),
             })),
         });
