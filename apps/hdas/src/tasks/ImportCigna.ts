@@ -95,6 +95,7 @@ export async function importCignaData(data: any, heartbeat?: () => Promise<void>
                 value: JSON.stringify({
                     topic: 'in-network-file',
                     payload: {
+                        jobId: data.id,
                         sourceType: 'CIGNA_INDEX_API',
                         url: fileToImport.file.url,
                         reportingPlans: fileToImport.reportingPlans,
@@ -112,6 +113,7 @@ export async function importCignaData(data: any, heartbeat?: () => Promise<void>
                 value: JSON.stringify({
                     topic: 'allowed-amount',
                     payload: {
+                        jobId: data.id,
                         sourceType: 'CIGNA_INDEX_API',
                         url: fileToImport.file.url,
                         reportingPlans: fileToImport.reportingPlans,
