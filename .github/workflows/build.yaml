@@ -16,6 +16,7 @@ jobs:
       contents: read
       packages: write
 
+
     strategy:
       fail-fast: false
       matrix:
@@ -45,7 +46,7 @@ jobs:
           build-args: |
             APP_NAME=${{ matrix.app }}
           tags: |
-            ${{ env.REGISTRY }}/ushio-${{ matrix.app }}:latest
-            ${{ env.REGISTRY }}/ushio-${{ matrix.app }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/conner120/ushio-${{ matrix.app }}:latest
+            ${{ env.REGISTRY }}/conner120/ushio-${{ matrix.app }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
