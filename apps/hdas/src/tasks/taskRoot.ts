@@ -1,5 +1,5 @@
 import axios from "axios";
-import { $ } from "bun";
+import { $, redis } from "bun";
 import { importCignaData } from "./ImportCigna";
 let t = BigInt(0);
 export async function taskRoot(topic: String, taskPayload: TaskPayload, heartbeat?: () => Promise<void>) {
@@ -11,9 +11,14 @@ export async function taskRoot(topic: String, taskPayload: TaskPayload, heartbea
         if (!size) {
             throw new Error("Failed to get size of downloaded in-network file");
         }
+        let sizeNum = parseInt(size);
         console.log("Fetched in-network file data:", size, "bytes");
         t += BigInt(size);
         console.log("Total in-network data processed so far (bytes):", t.toString());
+        redis.incrby(`${taskPayload.jobType}:TOTAL_BYTES_PROCESSED`, sizeNum);
+        redis.incrby(`${taskPayload.jobType}:TOTAL_FILES_PROCESSED`, 1);
+        redis.incrby(`${taskPayload.jobType}:IN_NETWORK_TOTAL_BYTES_PROCESSED`, sizeNum);
+        redis.incrby(`${taskPayload.jobType}:IN_NETWORK_TOTAL_FILES_PROCESSED`, 1);
         // Call the in-network task handler
     } else if (topic === 'allowed-amount') {
         console.log("Processing allowed-amount file with payload:", taskPayload);
@@ -25,6 +30,10 @@ export async function taskRoot(topic: String, taskPayload: TaskPayload, heartbea
         console.log("Fetched allowed-amount file data:", size, "bytes");
         t += BigInt(size);
         console.log("Total allowed-amount data processed so far (bytes):", t.toString());
+        redis.incrby(`${taskPayload.jobType}:TOTAL_BYTES_PROCESSED`, size);
+        redis.incrby(`${taskPayload.jobType}:TOTAL_FILES_PROCESSED`, 1);
+        redis.incrby(`${taskPayload.jobType}:ALLOWED_AMOUNT_TOTAL_BYTES_PROCESSED`, size);
+        redis.incrby(`${taskPayload.jobType}:ALLOWED_AMOUNT_TOTAL_FILES_PROCESSED`, 1);
         // Call the allowed-amount task handler
     } else if (topic === 'insurance-source-scan-jobs') {
         if (taskPayload.payload.sourceType === 'CIGNA_INDEX_API') {

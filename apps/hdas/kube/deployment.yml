@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ushio-hdas
+  labels:
+    app: ushio-hdas
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ushio-hdas
+  template:
+    metadata:
+      labels:
+        app: ushio-hdas
+    spec:
+      containers:
+      - name: ushio-hdas
+        image: ghcr.io/conner120/ushio-hdas:a563ecc986ea608a1428128a78fd7a66ef8c4fa7
+        env:
+          - name: KAFKA_BROKER
+            value: "192.168.20.60:30737"
+          - name: REDIS_URL
+            value: "redis://localhost:6379"
