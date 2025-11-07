@@ -2,7 +2,6 @@
 
 ### --- Base stage ---
 FROM oven/bun:1.3 AS base
-WORKDIR /repo
 
 # Copy the full monorepo (for turbo prune)
 COPY . .
@@ -15,12 +14,10 @@ ARG APP_NAME=hdas
 RUN turbo prune --scope=${APP_NAME}
 ### --- Dependencies stage ---
 FROM oven/bun:1.3 AS dependencies
-WORKDIR /repo
 COPY --from=base /out/apps/${APP_NAME} ./
 RUN bun install --frozen-lockfile
 ### --- Production stage ---
 FROM oven/bun:1.3 AS production
-WORKDIR /repo
 COPY --from=dependencies /repo/ ./
 COPY --from=base /apps/hdas/ ./apps/hdas/
 ARG APP_NAME=hdas
