@@ -18,9 +18,9 @@ COPY --from=base /out/apps/${APP_NAME} ./
 RUN bun install --frozen-lockfile
 ### --- Production stage ---
 FROM oven/bun:1.3 AS production
-COPY --from=base /out/apps/hdas/ ./apps/hdas/
 ARG APP_NAME=hdas
+COPY --from=base /out/apps/${APP_NAME} ./
+COPY --from=dependencies /node_modules ./node_modules
 RUN bun run turbo run build --filter=./apps/${APP_NAME}...
 ENV NODE_ENV=production
-WORKDIR /apps/hdas
 CMD ["bun", "run", "start"] 
