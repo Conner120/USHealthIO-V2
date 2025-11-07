@@ -12,33 +12,19 @@ RUN bun add --global turbo
 
 # Prune dependencies for only this app
 ARG APP_NAME=hdas
-RUN bun turbo prune --scope=$APP_NAME --docker
-
-### --- Builder stage ---
-FROM oven/bun:1.3 AS builder
+RUN turbo prune --scope=./apps/${APP_NAME} --dockerfile=./Dockerfile --base=base --include-deps
+### --- Dependencies stage ---
+FROM oven/bun:1.3 AS dependencies
 WORKDIR /repo
-ARG APP_NAME=hdas
-
-# Copy pruned dependency files
-COPY --from=base /repo/out/json/ ./
-COPY --from=base /repo/out/bun.lockb ./bun.lockb
-RUN bun install --frozen-lockfile
-
-# Copy pruned source
 COPY --from=base /repo/out/full/ ./
-
-# Build the app
-RUN bun run build --filter=$APP_NAME
-
-### --- Runner stage ---
-FROM oven/bun:1.3 AS runner
-WORKDIR /app
-ENV NODE_ENV=production
+RUN bun install --frozen-lockfile
+### --- Production stage ---
+FROM oven/bun:1.3 AS production
+WORKDIR /repo
+COPY --from=dependencies /repo/ ./
+COPY --from=base /repo/apps/hdas/ ./apps/hdas/
 ARG APP_NAME=hdas
-EXPOSE 3000
-
-# Copy built app
-COPY --from=builder /repo/apps/${APP_NAME} ./
-
-# Start app
-CMD ["bun", "run", "start"]
+RUN bun run turbo run build --filter=./apps/${APP_NAME}...
+ENV NODE_ENV=production
+WORKDIR /repo/apps/hdas
+CMD ["bun", "run", "start"] 
