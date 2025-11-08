@@ -19,7 +19,7 @@ WORKDIR /app
 RUN bun install --production
 ### --- Runtime stage ---
 FROM oven/bun:1.3-slim AS runtime
-RUN apt-get update && apt-get install curl gunzip unzip -y
+RUN apt-get update && apt-get install curl gzip unzip -y
 # Copy only necessary files from base stage
 COPY --from=base /app /app
 WORKDIR /app/apps/hdas
