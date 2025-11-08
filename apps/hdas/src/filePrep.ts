@@ -28,7 +28,6 @@ export async function getFile(url: string): Promise<{
                     size: 0, success: false, message: `Failed to decompress file: ${file}`
                 }
             }
-            fs.unlinkSync(`/tmp/${id}/${file}`);
         } else if (file.endsWith(".zip")) {
             console.log(`Decompressing zip file: ${file}`);
             let decompress = await $`unzip /tmp/${id}/${file} -d /tmp/${id}/`;
