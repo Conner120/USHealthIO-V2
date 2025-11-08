@@ -155,10 +155,13 @@ model InsurancePlan {
   planActive         Boolean           @default(true)
   insuranceCompany   InsuranceCompany? @relation(fields: [insuranceCompanyId], references: [id])
   insuranceCompanyId String?           @db.VarChar(50)
+  insurancePlanHash  String?           @unique @db.VarChar(64)
   createdAt          DateTime          @default(now())
   createdBy          String            @db.VarChar(50)
   updatedAt          DateTime          @updatedAt
   updatedBy          String            @db.VarChar(50)
   archivedBy         String?           @db.VarChar(50)
   archivedAt         DateTime?
+
+  @@index([planIdType, planId], name: "idx_planIdType_planId")
 }
