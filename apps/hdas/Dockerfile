@@ -5,7 +5,7 @@ FROM oven/bun:1.3 AS base
 WORKDIR /app
 # Copy the full monorepo (for turbo prune)
 COPY . .
-
+RUN apt-get update -y && apt-get install -y openssl
 # Install Turbo globally
 RUN bun add --global turbo
 RUN bun install
