@@ -84,6 +84,7 @@ model InsuranceScanJob {
   createdBy             String                 @db.VarChar(50)
   updatedAt             DateTime               @updatedAt
   updatedBy             String                 @db.VarChar(50)
+  parentJobId           String?                @db.VarChar(50)
   InsuranceScanSteps    InsuranceScanSteps[]
 }
 
