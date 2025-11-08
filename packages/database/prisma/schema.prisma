@@ -77,6 +77,7 @@ model InsuranceScanJob {
   fileUrl               String?                @db.VarChar(2000)
   fileExtension         FileExtension?
   fileType              FileType?
+  fileSize              BigInt?
   startedAt             DateTime?
   completedAt           DateTime?
   createdAt             DateTime               @default(now())

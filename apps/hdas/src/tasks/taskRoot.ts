@@ -23,6 +23,14 @@ export async function taskRoot(topicInput: String, taskPayload: TaskPayload, hea
         }
         let size = data.size.toString();
         let sizeNum = parseInt(size);
+        await prisma.insuranceScanJob.update({
+            where: {
+                id: taskPayload.id
+            },
+            data: {
+                fileSize: BigInt(size),
+            }
+        });
         console.log("Fetched in-network file data:", size, "bytes");
         t += BigInt(size);
         console.log("Total in-network data processed so far (bytes):", t.toString());
@@ -38,6 +46,14 @@ export async function taskRoot(topicInput: String, taskPayload: TaskPayload, hea
             throw new Error(`Failed to fetch allowed-amount file, status code: ${data.status}`);
         }
         let size = (await data.body?.bytes())?.length || 0;
+        await prisma.insuranceScanJob.update({
+            where: {
+                id: taskPayload.id
+            },
+            data: {
+                fileSize: BigInt(size),
+            }
+        });
         console.log("Fetched allowed-amount file data:", size, "bytes");
         t += BigInt(size);
         console.log("Total allowed-amount data processed so far (bytes):", t.toString());
