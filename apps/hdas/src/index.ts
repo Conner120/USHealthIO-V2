@@ -18,10 +18,11 @@ await producer.connect();
 const runConsumer = async () => {
     await consumer.connect();
     console.log('Consumer connected');
-    await consumer.subscribe({ topics: ['insurance-source-scan-jobs', 'in-network-file', 'allowed-amount'], fromBeginning: true }); // Subscribe to 'in_network', start from the beginning
+    await consumer.subscribe({ topics: ['insurance-source-scan-jobs', 'in-network-file'], fromBeginning: true }); // Subscribe to 'in_network', start from the beginning
     await consumer.run({
         eachMessage: async ({ topic, partition, message, heartbeat }: EachMessagePayload) => {
             try {
+                setInterval(heartbeat, 10000); // Send heartbeat every 10 seconds
                 let d = Date.now();
                 console.log(topic, partition)
                 let job = message.value ? JSON.parse(message.value.toString()) as TaskPayload : null;

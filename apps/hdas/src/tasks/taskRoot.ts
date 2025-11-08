@@ -1,16 +1,16 @@
 import axios from "axios";
 import { $, redis } from "bun";
 import { importCignaData } from "./ImportCigna";
+import { getFile } from "../filePrep";
 let t = BigInt(0);
 export async function taskRoot(topic: String, taskPayload: TaskPayload, heartbeat?: () => Promise<void>) {
     if (topic === 'in-network-file') {
         console.log("Processing in-network file with payload:", taskPayload);
-        let data = await $`curl -O ${taskPayload.payload.url} -o /tmp/${taskPayload.id}`;
-        // get size of downloaded file
-        let size = (await $`du -sb /tmp/${taskPayload.id}`).stdout.toString().split("\t")[0];
-        if (!size) {
-            throw new Error("Failed to get size of downloaded in-network file");
+        let data = await getFile(taskPayload.payload.url);
+        if (!data.success) {
+            throw new Error(`Failed to fetch in-network file from ${taskPayload.payload.url}, reason: ${data.message}`);
         }
+        let size = data.size.toString();
         let sizeNum = parseInt(size);
         console.log("Fetched in-network file data:", size, "bytes");
         t += BigInt(size);
