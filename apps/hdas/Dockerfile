@@ -15,6 +15,8 @@ RUN turbo prune --scope=${APP_NAME}
 # Move pruned files to /app
 RUN mkdir /app && mv out/* /app
 WORKDIR /app
+# build the database package first to generate prisma client
+RUN cd packages/database && bun generate
 # Install dependencies
 RUN bun install --production
 ### --- Runtime stage ---
