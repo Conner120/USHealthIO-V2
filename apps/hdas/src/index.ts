@@ -18,7 +18,7 @@ await producer.connect();
 const runConsumer = async () => {
     await consumer.connect();
     console.log('Consumer connected');
-    await consumer.subscribe({ topics: ['insurance-source-scan-jobs', 'in-network-file'], fromBeginning: true }); // Subscribe to 'in_network', start from the beginning
+    await consumer.subscribe({ topics: ['insurance-source-scan-jobs', 'in-network-file', 'allowed-amount'], fromBeginning: true }); // Subscribe to 'in_network', start from the beginning
     await consumer.run({
         eachMessage: async ({ topic, partition, message, heartbeat }: EachMessagePayload) => {
             try {

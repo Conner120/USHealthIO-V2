@@ -51,9 +51,10 @@ export async function importCignaData(data: any, heartbeat?: () => Promise<void>
                 console.log("Skipping empty allowed amount file:", fileReport.allowed_amount_file.location);
                 continue;
             }
-            let index = filesToImportIndex[fileReport.allowed_amount_file.location] = filesToImport.length;
-            if (filesToImport[index]) {
-                filesToImport[index].reportingPlans.push(...plans);
+            let locationSimple = fileReport.allowed_amount_file.location.split('?')[0];
+            let index = filesToImportIndex[locationSimple];
+            if (index) {
+                filesToImport[index]!.reportingPlans.push(...plans);
             } else {
                 console.log("Pushing new allowed amount file:", fileReport.allowed_amount_file);
                 filesToImport.push({
@@ -63,14 +64,15 @@ export async function importCignaData(data: any, heartbeat?: () => Promise<void>
                         type: "allowed_amount"
                     }
                 });
-                filesToImportIndex[fileReport.allowed_amount_file.location] = filesToImport.length - 1;
+                filesToImportIndex[locationSimple] = filesToImport.length - 1;
             }
         }
         if (fileReport.in_network_files) {
             for (const inNetworkFile of fileReport.in_network_files) {
-                let index = filesToImportIndex[inNetworkFile.location] = filesToImport.length;
-                if (filesToImport[index]) {
-                    filesToImport[index].reportingPlans.push(...plans);
+                let locationSimple = inNetworkFile.location.split('?')[0];
+                let index = filesToImportIndex[locationSimple]
+                if (index) {
+                    filesToImport[index]!.reportingPlans.push(...plans);
                 } else {
                     console.log("Pushing new in-network file:", inNetworkFile);
                     filesToImport.push({
@@ -80,11 +82,19 @@ export async function importCignaData(data: any, heartbeat?: () => Promise<void>
                             type: "in_network"
                         }
                     });
-                    filesToImportIndex[inNetworkFile.location] = filesToImport.length - 1;
+                    filesToImportIndex[locationSimple] = filesToImport.length - 1;
                 }
             }
         }
     }
+    // print out the csv of in-network files to import
+    console.log("Files to import:");
+    // make csv to disk
+    let csvContent = "file_url,file_type,reporting_plans\n";
+    for (const fileToImport of filesToImport) {
+        csvContent += `"${fileToImport.file.url}","${fileToImport.file.type}","${fileToImport.reportingPlans.join('|')}"\n`;
+    }
+    fs.writeFileSync(`/tmp/cigna_files_to_import_${data.id}.csv`, csvContent);
     // split into chunks of 100
     const chunkSize = 100;
     for (let i = 0; i < filesToImport.filter(f => f.file.type === "in_network").length; i += chunkSize) {
