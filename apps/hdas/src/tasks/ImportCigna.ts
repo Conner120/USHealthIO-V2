@@ -1,7 +1,7 @@
 import axios from "axios";
 import fs from "fs";
 import { producer } from "..";
-import { FileExtension, Prisma, prisma, type InsuranceScanFiles } from "@repo/database";
+import { FileExtension, FileType, Prisma, prisma } from "@repo/database";
 import type { TaskPayload } from "./taskRoot";
 import { generateId, IDTYPE } from "@repo/id-gen";
 export async function importCignaData(data: TaskPayload, heartbeat?: () => Promise<void>) {
@@ -15,7 +15,6 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             statusTime: new Date(),
         }
     });
-    console.log("Importing Cigna data with payload:", data);
     if (!data.payload.options || !data.payload.options['cigna_page_url']) {
         throw new Error("Cigna page URL is missing in options");
     }
@@ -43,15 +42,21 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
     // Process the first MRF (Medical Record File)
     const mrf = blobs.data.mrfs[0];
     // Here you would add logic to store the MRF in your database or further process it
-    console.log("Fetched Cigna data:", mrf);
-    console.log("Cigna data import completed.");
     if (mrf.files.length !== 1) {
         console.warn(`Expected 1 file in MRF, but found ${mrf.files.length}.`);
         return;
     }
     const file = mrf.files[0].url;
-    console.log("Cigna MRF file URL:", file);
     const indexFile = await axios.get(file);
+    await prisma.insuranceScanJob.update({
+        where: {
+            id: data.id
+        },
+        data: {
+            fileUrl: file,
+            fileExtension: getFileExtensionFromUrlWithQuery(file),
+        }
+    });
     if (indexFile.status !== 200) {
         throw new Error(`Failed to fetch Cigna MRF file, status code: ${indexFile.status}`);
     }
@@ -64,7 +69,6 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
     }[] = [];
     let filesToImportIndex: { [key: string]: number } = {};
     for (const fileReport of indexFile.data.reporting_structure) {
-        console.log("Processing file report:", fileReport);
         let plans: string[] = await getAndUpsertPlan(fileReport.reporting_plans);
         //parse allowed amount files
         if (fileReport.allowed_amount_file) {
@@ -76,6 +80,13 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             if (index) {
                 filesToImport[index]!.reportingPlans.push(...plans);
             } else {
+                filesToImport.push({
+                    reportingPlans: plans,
+                    file: {
+                        url: fileReport.allowed_amount_file.location,
+                        type: "allowed_amount"
+                    }
+                });
                 filesToImportIndex[locationSimple] = filesToImport.length - 1;
             }
         }
@@ -102,29 +113,34 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
     const chunkSize = 100;
     for (let i = 0; i < filesToImport.filter(f => f.file.type === "in_network").length; i += chunkSize) {
         const chunk = filesToImport.filter(f => f.file.type === "in_network").slice(i, i + chunkSize);
-        const chunkDatabase: Prisma.InsuranceScanFilesCreateManyInput[] = chunk.map(fileToImport => ({
-            id: generateId(IDTYPE.INSURANCE_SCAN_FILE),
-            insuranceScanJobId: data.id,
-            downloadUrl: fileToImport.file.url,
+        const chunkDatabase: Prisma.InsuranceScanJobCreateManyInput[] = chunk.map(fileToImport => ({
+            id: generateId(IDTYPE.INSURANCE_SCAN_JOB),
+            insuranceScanSourceId: data.payload.id,
+            status: 'PENDING',
+            statusTime: new Date(),
+            fileUrl: fileToImport.file.url,
             fileExtension: getFileExtensionFromUrlWithQuery(fileToImport.file.url),
-            fileName: fileToImport.file.url.split('/').pop()?.split('?')[0] || 'unknown',
-            fileType: 'IN_NETWORK',
-            reportingPlans: fileToImport.reportingPlans,
-            sourceType: 'CIGNA_INDEX_API',
+            fileType: 'IN_NETWORK' as FileType,
+            createdBy: data.payload.createdBy,
+            updatedBy: data.payload.createdBy,
         }));
-        await prisma.insuranceScanFiles.createMany({
+        await prisma.insuranceScanJob.createMany({
             data: chunkDatabase
         });
+        if (process.env.BLOCK_IN_NETWORK_IMPORTS === "1") {
+            console.log("Blocking in-network imports as per environment variable.");
+            continue;
+        }
         await producer.send({
-            topic: 'in-network-file',
+            topic: `${process.env.KAFKA_PREFIX}in-network-file`,
             messages: chunkDatabase.map(fileToImport => ({
                 value: JSON.stringify({
+                    id: fileToImport.id,
                     topic: 'in-network-file',
                     payload: {
-                        jobId: data.id,
                         sourceType: 'CIGNA_INDEX_API',
-                        url: fileToImport.downloadUrl,
-                        reportingPlans: fileToImport.planIds,
+                        url: fileToImport.fileUrl!,
+                        reportingPlans: filesToImport.find(f => f.file.url === fileToImport.fileUrl!)?.reportingPlans || [],
                     }
                 }),
             })),
@@ -133,29 +149,34 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
     }
     for (let i = 0; i < filesToImport.filter(f => f.file.type === "allowed_amount").length; i += chunkSize) {
         const chunk = filesToImport.filter(f => f.file.type === "allowed_amount").slice(i, i + chunkSize);
-        const chunkDatabase: Prisma.InsuranceScanFilesCreateManyInput[] = chunk.map(fileToImport => ({
-            id: generateId(IDTYPE.INSURANCE_SCAN_FILE),
-            insuranceScanJobId: data.id,
-            downloadUrl: fileToImport.file.url,
+        const chunkDatabase: Prisma.InsuranceScanJobCreateManyInput[] = chunk.map(fileToImport => ({
+            id: generateId(IDTYPE.INSURANCE_SCAN_JOB),
+            insuranceScanSourceId: data.payload.id,
+            status: 'PENDING',
+            statusTime: new Date(),
+            fileUrl: fileToImport.file.url,
             fileExtension: getFileExtensionFromUrlWithQuery(fileToImport.file.url),
-            fileName: fileToImport.file.url.split('/').pop()?.split('?')[0] || 'unknown',
-            fileType: 'ALLOWED_AMOUNT',
-            reportingPlans: fileToImport.reportingPlans,
-            sourceType: 'CIGNA_INDEX_API',
+            fileType: 'ALLOWED_AMOUNT' as FileType,
+            createdBy: data.payload.createdBy,
+            updatedBy: data.payload.createdBy,
         }));
-        await prisma.insuranceScanFiles.createMany({
+        await prisma.insuranceScanJob.createMany({
             data: chunkDatabase
         });
+        if (process.env.BLOCK_ALLOWED_AMOUNT_IMPORTS === "1") {
+            console.log("Blocking allowed-amount imports as per environment variable.");
+            continue;
+        }
         await producer.send({
-            topic: 'allowed-amount',
+            topic: `${process.env.KAFKA_PREFIX}allowed-amount`,
             messages: chunkDatabase.map(fileToImport => ({
                 value: JSON.stringify({
+                    id: fileToImport.id,
                     topic: 'allowed-amount',
                     payload: {
-                        jobId: data.id,
                         sourceType: 'CIGNA_INDEX_API',
-                        url: fileToImport.downloadUrl,
-                        reportingPlans: fileToImport.planIds,
+                        url: fileToImport.fileUrl!,
+                        reportingPlans: filesToImport.find(f => f.file.url === fileToImport.fileUrl!)?.reportingPlans || [],
                     }
                 }),
             })),
@@ -168,6 +189,7 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
         },
         data: {
             status: 'COMPLETED',
+            completedAt: new Date(),
             statusTime: new Date(),
         }
     });
@@ -180,7 +202,7 @@ async function getAndUpsertPlan(planData: {
     plan_id: string
     plan_market_type: 'individual' | 'group' | 'medicare' | 'medicaid'
 }[]): Promise<string[]> {
-    console.log("Upserting plans:", planData);
+    // console.log("Upserting plans:", planData);
     return []
 }
 

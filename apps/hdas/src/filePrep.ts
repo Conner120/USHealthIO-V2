@@ -1,11 +1,21 @@
 import { createId } from "@paralleldrive/cuid2";
 import fs from "fs";
 import { $, spawn, spawnSync } from "bun";
-export async function getFile(url: string): Promise<{
+import { prisma } from "@repo/database";
+export async function getFile(url: string, jobId: string): Promise<{
     size: number;
     success: boolean;
     message?: string;
 }> {
+    await prisma.insuranceScanJob.update({
+        where: {
+            id: jobId
+        },
+        data: {
+            status: 'DOWNLOADING',
+            statusTime: new Date(),
+        }
+    });
     let id = createId();
     console.log(`Downloading file from URL: ${url} to /tmp/${id} w/t ${`curl -O --output-dir /tmp/${id}/ "${url}"`}`);
     fs.mkdirSync(`/tmp/${id}`, { recursive: true });
@@ -16,6 +26,15 @@ export async function getFile(url: string): Promise<{
             size: 0, success: false
         }
     }
+    await prisma.insuranceScanJob.update({
+        where: {
+            id: jobId
+        },
+        data: {
+            status: 'DECOMPRESSING',
+            statusTime: new Date(),
+        }
+    });
     // find all files and decompress bassed on extension
     let files = fs.readdirSync(`/tmp/${id}`);
     for (let file of files) {
@@ -45,6 +64,15 @@ export async function getFile(url: string): Promise<{
             }
         }
     }
+    await prisma.insuranceScanJob.update({
+        where: {
+            id: jobId
+        },
+        data: {
+            status: 'PARSING',
+            statusTime: new Date(),
+        }
+    });
     // calculate total size of all files in the directory
     let totalSize = 0;
     let finalFiles = fs.readdirSync(`/tmp/${id}`);

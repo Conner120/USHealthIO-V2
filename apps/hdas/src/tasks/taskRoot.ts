@@ -8,8 +8,17 @@ export async function taskRoot(topicInput: String, taskPayload: TaskPayload, hea
     const topic = topicInput.replace(process.env.KAFKA_PREFIX as string, '');
     if (topic === 'in-network-file') {
         console.log("Processing in-network file with payload:", taskPayload);
-        let data = await getFile(taskPayload.payload.url);
+        let data = await getFile(taskPayload.payload.url, taskPayload.id);
         if (!data.success) {
+            await prisma.insuranceScanJob.update({
+                where: {
+                    id: taskPayload.id
+                },
+                data: {
+                    status: 'FAILED',
+                    statusTime: new Date(),
+                }
+            });
             throw new Error(`Failed to fetch in-network file from ${taskPayload.payload.url}, reason: ${data.message}`);
         }
         let size = data.size.toString();

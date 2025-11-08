@@ -44,6 +44,16 @@ const runConsumer = async () => {
                 console.log('Received message:', job);
                 await redis.hset('NODES', processId, job.id);
                 await taskRoot(topic, message.value ? JSON.parse(message.value.toString()) : {}, heartbeat);
+                await prisma.insuranceScanJob.update({
+                    where: {
+                        id: job.id
+                    },
+                    data: {
+                        status: 'COMPLETED',
+                        statusTime: new Date(),
+                        completedAt: new Date(),
+                    }
+                });
                 await redis.hset('NODES', processId, "IDLE");
                 console.log(`Processed message in ${Date.now() - d}ms`);
             } catch (error) {

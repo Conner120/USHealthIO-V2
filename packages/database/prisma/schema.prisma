@@ -63,6 +63,7 @@ enum InsuranceScanJobStatus {
   DOWNLOADING
   PARSING
   COMPLETED
+  DECOMPRESSING
   FAILED
 }
 
@@ -72,7 +73,10 @@ model InsuranceScanJob {
   insuranceScanSourceId String?                @db.VarChar(50)
   status                InsuranceScanJobStatus @default(PENDING)
   statusTime            DateTime               @default(now())
-  paylaod               Json?
+  payload               Json?
+  fileUrl               String?                @db.VarChar(2000)
+  fileExtension         FileExtension?
+  fileType              FileType?
   startedAt             DateTime?
   completedAt           DateTime?
   createdAt             DateTime               @default(now())
@@ -80,7 +84,6 @@ model InsuranceScanJob {
   updatedAt             DateTime               @updatedAt
   updatedBy             String                 @db.VarChar(50)
   InsuranceScanSteps    InsuranceScanSteps[]
-  insuranceScanFiles    InsuranceScanFiles[]
 }
 
 enum FileType {
@@ -94,23 +97,6 @@ enum FileExtension {
   JSON
   GZ
   UNKNOWN
-}
-
-model InsuranceScanFiles {
-  id                 String               @id @db.VarChar(50)
-  fileType           FileType
-  fileExtension      FileExtension
-  downloadUrl        String               @db.VarChar(4000)
-  fileName           String               @db.VarChar(255)
-  fileSize           BigInt?
-  planIds            String[]
-  downloadedAt       DateTime?
-  decompressedAt     DateTime?
-  parsedAt           DateTime?
-  checksum           String?              @db.VarChar(100)
-  InsuranceScanJob   InsuranceScanJob     @relation(fields: [insuranceScanJobId], references: [id])
-  insuranceScanJobId String
-  insuranceScanSteps InsuranceScanSteps[]
 }
 
 enum InsuranceScanStepType {
@@ -129,20 +115,18 @@ enum InsuranceScanStepStatus {
 }
 
 model InsuranceScanSteps {
-  id                  String                 @id @db.VarChar(50)
-  type                InsuranceScanStepType
-  name                String                 @db.VarChar(100)
-  description         String?                @db.VarChar(500)
-  status              InsuranceScanJobStatus @default(PENDING)
-  statusTime          DateTime               @default(now())
-  startedAt           DateTime?
-  completedAt         DateTime?
-  sequenceOrder       Int
-  InsuranceScanJob    InsuranceScanJob       @relation(fields: [insuranceScanJobId], references: [id])
-  insuranceScanJobId  String
-  insuranceScanFileId String?                @db.VarChar(50)
-  InsuranceScanFiles  InsuranceScanFiles?    @relation(fields: [insuranceScanFileId], references: [id])
-  createdAt           DateTime               @default(now())
+  id                 String                 @id @db.VarChar(50)
+  type               InsuranceScanStepType
+  name               String                 @db.VarChar(100)
+  description        String?                @db.VarChar(500)
+  status             InsuranceScanJobStatus @default(PENDING)
+  statusTime         DateTime               @default(now())
+  startedAt          DateTime?
+  completedAt        DateTime?
+  sequenceOrder      Int
+  InsuranceScanJob   InsuranceScanJob       @relation(fields: [insuranceScanJobId], references: [id])
+  insuranceScanJobId String
+  createdAt          DateTime               @default(now())
 }
 
 model InsurancePlan {

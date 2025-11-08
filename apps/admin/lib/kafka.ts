@@ -27,6 +27,7 @@ export async function SendTICJobTrigger(id: string, jobId: string) {
             id: generateId(IDTYPE.INSURANCE_SCAN_JOB),
             insuranceScanSourceId: importSource.id,
             status: 'PENDING',
+            fileType: 'TABLE_OF_CONTENTS',
             statusTime: new Date(),
             createdBy: user?.id as string,
             updatedBy: user?.id as string,
