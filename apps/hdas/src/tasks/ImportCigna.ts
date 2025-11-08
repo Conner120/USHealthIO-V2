@@ -121,6 +121,7 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             fileUrl: fileToImport.file.url,
             fileExtension: getFileExtensionFromUrlWithQuery(fileToImport.file.url),
             fileType: 'IN_NETWORK' as FileType,
+            insuranceScanJobId: data.id,
             createdBy: data.payload.createdBy,
             updatedBy: data.payload.createdBy,
         }));
@@ -157,6 +158,7 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             fileUrl: fileToImport.file.url,
             fileExtension: getFileExtensionFromUrlWithQuery(fileToImport.file.url),
             fileType: 'ALLOWED_AMOUNT' as FileType,
+            insuranceScanJobId: data.id,
             createdBy: data.payload.createdBy,
             updatedBy: data.payload.createdBy,
         }));
