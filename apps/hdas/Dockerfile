@@ -11,4 +11,5 @@ RUN bun add --global turbo
 RUN bun install
 RUN cd packages/database && bun generate
 WORKDIR /app/apps/hdas
-CMD [ "bun", "start" ]
+RUN bun install
+CMD ["ls -l && pwd && bun start"]
