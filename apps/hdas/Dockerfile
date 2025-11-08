@@ -11,4 +11,4 @@ RUN bun add --global turbo
 RUN bun install
 RUN cd packages/database && bun generate
 WORKDIR /apps/hdas
-CMD [ "bun", "src/index.ts" ]
+CMD [ "bun", "start" ]
