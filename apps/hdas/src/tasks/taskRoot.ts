@@ -2,8 +2,10 @@ import axios from "axios";
 import { $, redis } from "bun";
 import { importCignaData } from "./ImportCigna";
 import { getFile } from "../filePrep";
+import { prisma } from "@repo/database";
 let t = BigInt(0);
-export async function taskRoot(topic: String, taskPayload: TaskPayload, heartbeat?: () => Promise<void>) {
+export async function taskRoot(topicInput: String, taskPayload: TaskPayload, heartbeat?: () => Promise<void>) {
+    const topic = topicInput.replace(process.env.KAFKA_PREFIX as string, '');
     if (topic === 'in-network-file') {
         console.log("Processing in-network file with payload:", taskPayload);
         let data = await getFile(taskPayload.payload.url);
@@ -37,7 +39,18 @@ export async function taskRoot(topic: String, taskPayload: TaskPayload, heartbea
         // Call the allowed-amount task handler
     } else if (topic === 'insurance-source-scan-jobs') {
         if (taskPayload.payload.sourceType === 'CIGNA_INDEX_API') {
-            await importCignaData(taskPayload.payload);
+            await importCignaData(taskPayload).catch(async (error) => {
+                console.error("Error importing Cigna data:", error);
+                await prisma.insuranceScanJob.update({
+                    where: {
+                        id: taskPayload.id
+                    },
+                    data: {
+                        status: 'FAILED',
+                        statusTime: new Date(),
+                    }
+                });
+            });
         }
         // Call the insurance source scan job handler
     } else {

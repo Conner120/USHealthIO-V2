@@ -23,6 +23,7 @@ model InsuranceCompany {
   archivedBy       String?               @db.VarChar(50)
   archivedAt       DateTime?
   scanSources      InsuranceScanSource[]
+  insurancePlans   InsurancePlan[]
 }
 
 enum InsuranceScanSourceType {
@@ -92,6 +93,7 @@ enum FileExtension {
   ZIP
   JSON
   GZ
+  UNKNOWN
 }
 
 model InsuranceScanFiles {
@@ -101,6 +103,7 @@ model InsuranceScanFiles {
   downloadUrl        String               @db.VarChar(4000)
   fileName           String               @db.VarChar(255)
   fileSize           BigInt?
+  planIds            String[]
   downloadedAt       DateTime?
   decompressedAt     DateTime?
   parsedAt           DateTime?
@@ -140,4 +143,22 @@ model InsuranceScanSteps {
   insuranceScanFileId String?                @db.VarChar(50)
   InsuranceScanFiles  InsuranceScanFiles?    @relation(fields: [insuranceScanFileId], references: [id])
   createdAt           DateTime               @default(now())
+}
+
+model InsurancePlan {
+  id                 String            @id @db.VarChar(50)
+  planIdType         String            @db.VarChar(50)
+  planId             String            @db.VarChar(100)
+  planMarketType     String            @db.VarChar(50)
+  planFirstSeen      DateTime
+  planLastSeen       DateTime
+  planActive         Boolean           @default(true)
+  insuranceCompany   InsuranceCompany? @relation(fields: [insuranceCompanyId], references: [id])
+  insuranceCompanyId String?           @db.VarChar(50)
+  createdAt          DateTime          @default(now())
+  createdBy          String            @db.VarChar(50)
+  updatedAt          DateTime          @updatedAt
+  updatedBy          String            @db.VarChar(50)
+  archivedBy         String?           @db.VarChar(50)
+  archivedAt         DateTime?
 }

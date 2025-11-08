@@ -2,6 +2,7 @@ import { type EachMessagePayload, Kafka } from 'kafkajs';
 import { type TaskPayload, taskRoot } from "./tasks/taskRoot.ts";
 import { redis } from "bun";
 import { createId } from "@paralleldrive/cuid2";
+import { prisma } from '@repo/database';
 
 export const kafka = new Kafka({
     clientId: 'health-data-acquisition-system',
@@ -12,20 +13,30 @@ const kafkaProducer = new Kafka({
     brokers: [process.env.KAFKA_BROKER as string], // Replace it with your Kafka broker addresses
 });
 
-const consumer = kafka.consumer({ groupId: 'hdas-parser' });
+const consumer = kafka.consumer({ groupId: `${process.env.KAFKA_PREFIX}hdas-parser` });
 export const producer = kafkaProducer.producer();
 await producer.connect();
 const runConsumer = async () => {
     await consumer.connect();
     console.log('Consumer connected');
-    await consumer.subscribe({ topics: ['insurance-source-scan-jobs', 'in-network-file', 'allowed-amount'], fromBeginning: true }); // Subscribe to 'in_network', start from the beginning
+    await consumer.subscribe({ topics: ['insurance-source-scan-jobs', 'in-network-file', 'allowed-amount'].map(topic => `${process.env.KAFKA_PREFIX}${topic}`), fromBeginning: true }); // Subscribe to 'in_network', start from the beginning
     await consumer.run({
         eachMessage: async ({ topic, partition, message, heartbeat }: EachMessagePayload) => {
             try {
+
                 setInterval(heartbeat, 10000); // Send heartbeat every 10 seconds
                 let d = Date.now();
-                console.log(topic, partition)
                 let job = message.value ? JSON.parse(message.value.toString()) as TaskPayload : null;
+                await prisma.insuranceScanJob.update({
+                    where: {
+                        id: job?.id
+                    },
+                    data: {
+                        status: 'PENDING',
+                        statusTime: new Date(),
+                        startedAt: new Date(),
+                    }
+                });
                 if (!job) {
                     console.error('Invalid message format:', message);
                     return;

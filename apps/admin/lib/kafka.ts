@@ -34,11 +34,11 @@ export async function SendTICJobTrigger(id: string, jobId: string) {
     })
     await producer.connect()
     await producer.send({
-        topic: 'insurance-source-scan-jobs',
+        topic: `${process.env.KAFKA_PREFIX}insurance-source-scan-jobs`,
         messages: [
             {
                 value: JSON.stringify({
-                    jobId: scanJob.id,
+                    id: scanJob.id,
                     type: 'insurance-source-scan-jobs',
                     payload: importSource
                 })

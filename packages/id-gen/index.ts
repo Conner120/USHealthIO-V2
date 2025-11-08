@@ -9,5 +9,6 @@ export enum IDTYPE {
     INSURANCE_SCAN_SOURCE = "iss",
     INSURANCE_SCAN_JOB = "ins_job",
     INSURANCE_SCAN_FILE = "ins_file",
-    INSURANCE_SCAN_STEP = "ins_step"
+    INSURANCE_SCAN_STEP = "ins_step",
+    INSURANCE_PLAN = "ins_plan",
 }
