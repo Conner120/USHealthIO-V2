@@ -12,4 +12,4 @@ RUN bun install
 RUN cd packages/database && bun generate
 WORKDIR /app/apps/hdas
 RUN bun install
-CMD ["ls -l && pwd && bun start"]
+CMD [ "bun", "start" ]
