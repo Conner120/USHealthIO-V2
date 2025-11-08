@@ -30,15 +30,19 @@ export async function getFile(url: string): Promise<{
             }
         } else if (file.endsWith(".zip")) {
             console.log(`Decompressing zip file: ${file}`);
-            let decompress = await $`unzip /tmp/${id}/${file} -d /tmp/${id}/`;
-            if (decompress.exitCode !== 0) {
-                console.error(`Failed to decompress file: ${file}. Exit code: ${decompress.exitCode}`);
-                return {
-                    size: 0, success: false, message: `Failed to decompress file: ${file}`
+            try {
+                let decompress = await $`unzip /tmp/${id}/${file} -d /tmp/${id}/`;
+                if (decompress.exitCode !== 0) {
+                    console.error(`Failed to decompress file: ${file}. Exit code: ${decompress.exitCode}`);
+                    return {
+                        size: 0, success: false, message: `Failed to decompress file: ${file}`
+                    }
                 }
+                // remove the zip file after extraction
+                fs.unlinkSync(`/tmp/${id}/${file}`);
+            } catch (error) {
+                console.error(`Error decompressing zip file: ${file}. Error: ${error}`);
             }
-            // remove the zip file after extraction
-            fs.unlinkSync(`/tmp/${id}/${file}`);
         }
     }
     // calculate total size of all files in the directory
