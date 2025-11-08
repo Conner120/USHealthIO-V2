@@ -48,6 +48,7 @@ export async function getFile(url: string): Promise<{
         let stats = fs.statSync(`/tmp/${id}/${file}`);
         totalSize += stats.size;
     }
+    await $`rm -rf /tmp/${id}`;
     console.log(`Total size of downloaded files: ${totalSize} bytes`);
     return {
         size: totalSize, success: true
