@@ -23,6 +23,7 @@ FROM oven/bun:1.3-slim AS runtime
 RUN apt-get update && apt-get install curl gzip unzip -y
 # Copy only necessary files from base stage
 COPY --from=base /app /app
+COPY --from=base /packages /packages
 WORKDIR /app/apps/hdas
 # Expose necessary ports
 EXPOSE 3000
