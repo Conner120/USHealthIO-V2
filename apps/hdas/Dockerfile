@@ -11,12 +11,11 @@ RUN bun add --global turbo
 
 # Prune dependencies for only this app
 ARG APP_NAME=hdas
+RUN cd packages/database && bun install && bun generate
 RUN turbo prune --scope=${APP_NAME}
 # Move pruned files to /app
 RUN mkdir /app && mv out/* /app
 WORKDIR /app
-# build the database package first to generate prisma client
-RUN cd packages/database && bun install && npx prisma generate
 # Install dependencies
 RUN bun install --production
 ### --- Runtime stage ---
