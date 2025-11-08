@@ -2,7 +2,7 @@
 
 ### --- Base stage ---
 FROM oven/bun:1.3 AS base
-
+WORKDIR /app
 # Copy the full monorepo (for turbo prune)
 COPY . .
 
@@ -10,5 +10,5 @@ COPY . .
 RUN bun add --global turbo
 RUN bun install
 RUN cd packages/database && bun generate
-WORKDIR /apps/hdas
+WORKDIR /app/apps/hdas
 CMD [ "bun", "start" ]
