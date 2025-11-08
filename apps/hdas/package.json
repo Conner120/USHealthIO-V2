@@ -20,6 +20,7 @@
     "@prisma/client": "^6.18.0",
     "axios": "^1.13.2",
     "kafkajs": "^2.2.4",
+    "@repo/id-gen": "*",
     "nodemon": "^3.1.10"
   }
 }
