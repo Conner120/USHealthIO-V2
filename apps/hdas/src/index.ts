@@ -88,8 +88,15 @@ process.on('SIGINT', shutdown);
 function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+const maxRetries = 5;
+let attempt = 0;
 while (true) {
     runConsumer().catch(console.error);
     await sleep(1000);
     console.log("Restarting consumer...");
+    attempt++;
+    if (attempt >= maxRetries) {
+        console.error("Max retries reached. Exiting...");
+        process.exit(1);
+    }
 }
