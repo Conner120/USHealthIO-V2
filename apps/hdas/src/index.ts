@@ -60,14 +60,14 @@ const runConsumer = async () => {
                 console.error('Error processing message:', error);
             }
         },
+    }).catch(error => {
+        console.error('Error running consumer:', error);
     });
     console.log('Consumer started listening for messages');
 };
 // generate random node id
 export const processId = createId();
 await redis.hset('NODES', processId, "IDLE");
-runConsumer().catch(console.error);
-
 // Handle a graceful shutdown
 const shutdown = async () => {
     try {
@@ -86,3 +86,7 @@ process.on('SIGTERM', shutdown);
 // handle nodemon restarts
 process.on('SIGUSR2', shutdown);
 process.on('SIGINT', shutdown);
+
+while (true) {
+    runConsumer().catch(console.error);
+}

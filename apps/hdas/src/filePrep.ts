@@ -1,7 +1,8 @@
 import { createId } from "@paralleldrive/cuid2";
 import fs from "fs";
 import { $, spawn, spawnSync } from "bun";
-import { prisma } from "@repo/database";
+import { FileExtension, FileType, prisma } from "@repo/database";
+import { generateId, IDTYPE } from "@repo/id-gen";
 export async function getFile(url: string, jobId: string): Promise<{
     size: number;
     success: boolean;
@@ -79,10 +80,55 @@ export async function getFile(url: string, jobId: string): Promise<{
     for (let file of finalFiles) {
         let stats = fs.statSync(`/tmp/${id}/${file}`);
         totalSize += stats.size;
+        let fileHash = await $`sha256sum /tmp/${id}/${file}`.text();
+        console.log(`File: ${file}, Size: ${stats.size} bytes, Hash: ${fileHash.split(' ')[0]}`);
+        await prisma.insuranceScanDecompressedFile.create({
+            data: {
+                id: generateId(IDTYPE.INSURANCE_JOB_FILE),
+                insuranceScanJobId: jobId,
+                fileName: file,
+                fileSize: BigInt(stats.size),
+                fileType: getFileTypeFromName(file),
+                fileExtension: getFileExtensionFromUrlWithQuery(getFileExtensionFromName(file)),
+                fileHash: fileHash.split(' ')[0] ?? '',
+                createdAt: new Date(),
+            }
+        });
     }
+
     await $`rm -rf /tmp/${id}`;
     console.log(`Total size of downloaded files: ${totalSize} bytes`);
     return {
         size: totalSize, success: true
+    }
+}
+function getFileExtensionFromUrlWithQuery(extension: string): FileExtension {
+    switch (extension.toLowerCase()) {
+        case 'json':
+            return FileExtension.JSON;
+    }
+    return FileExtension.UNKNOWN;
+}
+
+function getFileExtensionFromName(fileName: string): string {
+    // handle multiple extensions like .tar.gz
+    let parts = fileName.split('.');
+    if (parts.length > 2) {
+        return parts.slice(1).join('.').toLowerCase();
+    } else if (parts.length === 2) {
+        return parts[1]?.toLowerCase() ?? ''
+    } else {
+        return '';
+    }
+}
+
+function getFileTypeFromName(fileName: string): FileType {
+    if (fileName.toLowerCase().includes('in_network')) {
+        return FileType.IN_NETWORK;
+    } else if (fileName.toLowerCase().includes('allowed_amount')) {
+        return FileType.ALLOWED_AMOUNT;
+    } else {
+        console.warn(`Unknown file type for file name: ${fileName}`);
+        return FileType.UNKNOWN;
     }
 }

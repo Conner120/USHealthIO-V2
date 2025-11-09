@@ -68,30 +68,44 @@ enum InsuranceScanJobStatus {
 }
 
 model InsuranceScanJob {
-  id                    String                 @id @db.VarChar(50)
-  insuranceScanSource   InsuranceScanSource?   @relation(fields: [insuranceScanSourceId], references: [id])
-  insuranceScanSourceId String?                @db.VarChar(50)
-  status                InsuranceScanJobStatus @default(PENDING)
-  statusTime            DateTime               @default(now())
-  payload               Json?
-  fileUrl               String?                @db.VarChar(2000)
-  fileExtension         FileExtension?
-  fileType              FileType?
-  fileSize              BigInt?
-  startedAt             DateTime?
-  completedAt           DateTime?
-  createdAt             DateTime               @default(now())
-  createdBy             String                 @db.VarChar(50)
-  updatedAt             DateTime               @updatedAt
-  updatedBy             String                 @db.VarChar(50)
-  parentJobId           String?                @db.VarChar(50)
-  InsuranceScanSteps    InsuranceScanSteps[]
+  id                             String                          @id @db.VarChar(50)
+  insuranceScanSource            InsuranceScanSource?            @relation(fields: [insuranceScanSourceId], references: [id])
+  insuranceScanSourceId          String?                         @db.VarChar(50)
+  status                         InsuranceScanJobStatus          @default(PENDING)
+  statusTime                     DateTime                        @default(now())
+  payload                        Json?
+  fileUrl                        String?                         @db.VarChar(2000)
+  fileExtension                  FileExtension?
+  fileType                       FileType?
+  fileSize                       BigInt?
+  startedAt                      DateTime?
+  completedAt                    DateTime?
+  createdAt                      DateTime                        @default(now())
+  createdBy                      String                          @db.VarChar(50)
+  updatedAt                      DateTime                        @updatedAt
+  updatedBy                      String                          @db.VarChar(50)
+  parentJobId                    String?                         @db.VarChar(50)
+  InsuranceScanSteps             InsuranceScanSteps[]
+  insuranceScanDecompressedFiles InsuranceScanDecompressedFile[]
+}
+
+model InsuranceScanDecompressedFile {
+  id                 String           @id @db.VarChar(50)
+  insuranceScanJob   InsuranceScanJob @relation(fields: [insuranceScanJobId], references: [id])
+  insuranceScanJobId String           @db.VarChar(50)
+  fileName           String           @db.VarChar(500)
+  fileType           FileType
+  fileExtension      FileExtension
+  fileSize           BigInt
+  fileHash           String           @db.VarChar(64)
+  createdAt          DateTime         @default(now())
 }
 
 enum FileType {
   ALLOWED_AMOUNT
   IN_NETWORK
   TABLE_OF_CONTENTS
+  UNKNOWN
 }
 
 enum FileExtension {
