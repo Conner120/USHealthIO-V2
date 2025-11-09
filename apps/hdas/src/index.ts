@@ -21,7 +21,6 @@ await redis.hset('NODES', processId, "IDLE");
 const shutdown = async () => {
     try {
         await redis.hdel('NODES', processId);
-        await consumer.disconnect();
         await producer.disconnect();
         console.log('Consumer disconnected');
         process.exit(0);
