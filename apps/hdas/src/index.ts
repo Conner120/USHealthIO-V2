@@ -60,9 +60,7 @@ const runConsumer = async () => {
                 console.error('Error processing message:', error);
             }
         },
-    }).catch(error => {
-        console.error('Error running consumer:', error);
-    });
+    })
     console.log('Consumer started listening for messages');
 };
 // generate random node id
@@ -87,6 +85,11 @@ process.on('SIGTERM', shutdown);
 process.on('SIGUSR2', shutdown);
 process.on('SIGINT', shutdown);
 
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 while (true) {
     runConsumer().catch(console.error);
+    await sleep(1000);
+    console.log("Restarting consumer...");
 }
