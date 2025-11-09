@@ -85,9 +85,8 @@ process.on('SIGTERM', shutdown);
 process.on('SIGUSR2', shutdown);
 process.on('SIGINT', shutdown);
 
-function sleep(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+while (true) {
+    runConsumer().catch(console.error);
+    console.log("Consumer crashed, restarting in 5 seconds...");
+    await new Promise(res => setTimeout(res, 5000));
 }
-const maxRetries = 5;
-let attempt = 0;
-runConsumer().catch(console.error);
