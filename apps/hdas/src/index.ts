@@ -86,14 +86,7 @@ while (true) {
         })
         console.log('Consumer started listening for messages');
     };
-    runConsumer().catch(async (error) => {
-        console.error('Error in consumer:', error);
-        try {
-            await consumer.disconnect();
-        } catch (e) {
-            console.error('Failed to disconnect consumer after error:', e);
-        }
-    });
+    await runConsumer();
     console.log("Consumer crashed, restarting in 5 seconds...");
     await new Promise(res => setTimeout(res, 5000));
 }
