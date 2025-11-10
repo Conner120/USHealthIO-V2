@@ -95,6 +95,12 @@ export async function getFile(url: string, jobId: string): Promise<{
             }
         });
     }
+    // parse 
+    for (let file of finalFiles) {
+        console.log(`Parsing file: ${file}`);
+        // add parsing logic here as needed
+        await $`../../parser-tools/parser-rs/target/release/main /tmp/${id}/${file}`;
+    }
 
     await $`rm -rf /tmp/${id}`;
     console.log(`Total size of downloaded files: ${totalSize} bytes`);
@@ -123,9 +129,9 @@ function getFileExtensionFromName(fileName: string): string {
 }
 
 function getFileTypeFromName(fileName: string): FileType {
-    if (fileName.toLowerCase().includes('in_network')) {
+    if (fileName.toLowerCase().includes('in-network')) {
         return FileType.IN_NETWORK;
-    } else if (fileName.toLowerCase().includes('allowed_amount')) {
+    } else if (fileName.toLowerCase().includes('allowed-amount')) {
         return FileType.ALLOWED_AMOUNT;
     } else {
         console.warn(`Unknown file type for file name: ${fileName}`);

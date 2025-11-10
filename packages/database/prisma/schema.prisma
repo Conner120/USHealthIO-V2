@@ -145,22 +145,35 @@ model InsuranceScanSteps {
   createdAt          DateTime               @default(now())
 }
 
+enum InsurancePlanIdType {
+  EIN
+  HIOS
+}
+
+enum InsurancePlanMarketType {
+  INDIVIDUAL
+  GROUP
+}
+
 model InsurancePlan {
-  id                 String            @id @db.VarChar(50)
-  planIdType         String            @db.VarChar(50)
-  planId             String            @db.VarChar(100)
-  planMarketType     String            @db.VarChar(50)
+  id                 String                  @id @db.VarChar(50)
+  planName           String                  @db.VarChar(500)
+  planIdType         InsurancePlanIdType
+  planId             String                  @db.VarChar(100)
+  planSponsorName    String?                 @db.VarChar(500)
+  planMarketType     InsurancePlanMarketType
   planFirstSeen      DateTime
   planLastSeen       DateTime
-  planActive         Boolean           @default(true)
-  insuranceCompany   InsuranceCompany? @relation(fields: [insuranceCompanyId], references: [id])
-  insuranceCompanyId String?           @db.VarChar(50)
-  insurancePlanHash  String?           @unique @db.VarChar(64)
-  createdAt          DateTime          @default(now())
-  createdBy          String            @db.VarChar(50)
-  updatedAt          DateTime          @updatedAt
-  updatedBy          String            @db.VarChar(50)
-  archivedBy         String?           @db.VarChar(50)
+  planActive         Boolean                 @default(true)
+  insuranceCompany   InsuranceCompany?       @relation(fields: [insuranceCompanyId], references: [id])
+  insuranceCompanyId String?                 @db.VarChar(50)
+  insurancePlanHash  String?                 @unique @db.VarChar(64)
+  parentPlanIds      String[]
+  createdAt          DateTime                @default(now())
+  createdBy          String                  @db.VarChar(50)
+  updatedAt          DateTime                @updatedAt
+  updatedBy          String                  @db.VarChar(50)
+  archivedBy         String?                 @db.VarChar(50)
   archivedAt         DateTime?
 
   @@index([planIdType, planId], name: "idx_planIdType_planId")

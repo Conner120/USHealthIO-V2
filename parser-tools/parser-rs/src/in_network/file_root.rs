@@ -203,7 +203,7 @@ async fn submit_in_network(mut records: Vec<InNetworkObject>, producer: &Threade
                 neg
             }).collect());
             let bytes = t.write_to_bytes().unwrap();
-            let base_record = BaseRecord::to("topic_name").key(&[])
+            let base_record = BaseRecord::to("in-network-rates").key(&[])
                 .payload(&bytes);
             count+=1;
             match producer.send(base_record) {
