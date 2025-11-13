@@ -7,7 +7,7 @@ WORKDIR /app
 COPY apps ./apps
 COPY packages ./packages
 COPY turbo.json .
-COPY bun.lockb .
+COPY bun.lock .
 COPY package.json .
 RUN apt-get update -y && apt-get install -y openssl curl gzip unzip coreutils
 COPY parser-tools/parser-rs/target/release/main ./parser-tools/parser-rs/target/release/main
