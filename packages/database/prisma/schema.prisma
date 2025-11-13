@@ -74,6 +74,16 @@ model InsuranceScanJob {
   status                         InsuranceScanJobStatus          @default(PENDING)
   statusTime                     DateTime                        @default(now())
   payload                        Json?
+  inNetworkObjectsParsed         BigInt?                         @default(0)
+  allowedAmountObjectsParsed     BigInt?                         @default(0)
+  inNetworkRatesSaved            BigInt?                         @default(0)
+  allowedAmountRatesSaved        BigInt?                         @default(0)
+  inNetworkRatesWithErrors       BigInt?                         @default(0)
+  allowedAmountRatesWithErrors   BigInt?                         @default(0)
+  providersParsed                BigInt?                         @default(0)
+  plansParsed                    BigInt?                         @default(0)
+  providersSaved                 BigInt?                         @default(0)
+  plansSaved                     BigInt?                         @default(0)
   fileUrl                        String?                         @db.VarChar(2000)
   fileExtension                  FileExtension?
   fileType                       FileType?
@@ -177,4 +187,56 @@ model InsurancePlan {
   archivedAt         DateTime?
 
   @@index([planIdType, planId], name: "idx_planIdType_planId")
+}
+
+model procedure_code_type {
+  id             String           @id @db.VarChar(20)
+  type           String           @db.VarChar(100)
+  description    String           @db.VarChar(1000)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  procedureCodes procedure_code[]
+}
+
+model procedure_code {
+  id          Int                 @id @default(autoincrement())
+  code        String              @db.VarChar(20)
+  CodeType    procedure_code_type @relation(fields: [typeId], references: [id])
+  typeId      String              @db.VarChar(20)
+  description String              @db.VarChar(1000)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model provider_group {
+  id                     String                    @id @db.VarChar(50)
+  groupName              String                    @db.VarChar(200)
+  createdAt              DateTime                  @default(now())
+  createdBy              String                    @db.VarChar(50)
+  updatedAt              DateTime                  @updatedAt
+  updatedBy              String                    @db.VarChar(50)
+  archivedBy             String?                   @db.VarChar(50)
+  archivedAt             DateTime?
+  providerGroupProviders provider_group_provider[]
+}
+
+model provider_group_provider {
+  id              String         @id @db.VarChar(50)
+  providerGroup   provider_group @relation(fields: [providerGroupId], references: [id])
+  providerGroupId String         @db.VarChar(50)
+  provider        provider       @relation(fields: [providerId], references: [id])
+  providerId      String         @db.VarChar(50)
+  createdAt       DateTime       @default(now())
+}
+
+model provider {
+  id                     String                    @id @db.VarChar(50)
+  providerNPI            String                    @unique @db.VarChar(20)
+  firstName              String                    @db.VarChar(250)
+  lastName               String                    @db.VarChar(250)
+  createdAt              DateTime                  @default(now())
+  createdBy              String                    @db.VarChar(50)
+  updatedAt              DateTime                  @updatedAt
+  updatedBy              String                    @db.VarChar(50)
+  providerGroupProviders provider_group_provider[]
 }

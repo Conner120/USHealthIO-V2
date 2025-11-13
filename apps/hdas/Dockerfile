@@ -4,7 +4,12 @@
 FROM oven/bun:1.3 AS base
 WORKDIR /app
 # Copy the full monorepo (for turbo prune)
-COPY . .
+COPY apps ./apps
+COPY packages ./packages
+COPY turbo.json .
+COPY bun.lockb .
+COPY package.json .
+COPY parser-tools/parser-rs/target/release/main ./parser-tools/parser-rs/target/release/main
 RUN apt-get update -y && apt-get install -y openssl curl gzip unzip coreutils
 # Install Turbo globally
 RUN bun add --global turbo
