@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::fs::File;
+use std::iter::Map;
 use std::time::Duration;
 use protobuf::Message;
 use rdkafka::producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer};
@@ -9,7 +11,7 @@ use crate::create_producer;
 use crate::in_network::kafka_messages::{NegotiatedPriceKafkaMessage, ProcedureKafkaMessage, ProviderNegotiationKafkaMessage};
 use crate::in_network::types::in_network::{in_network_object, InNetworkObject};
 use crate::in_network::types::provider_references::ProviderReferenceObject;
-use crate::kafka::{ProtoNegotiatedPriceKafkaMessage, ProtoProcedureKafkaMessage, ProtoProviderNegotiationKafkaMessage};
+use crate::kafka::{ProtoNegotiatedPriceKafkaMessage, ProtoProcedureKafkaMessage, ProtoProviderMessage, ProtoProviderNegotiationKafkaMessage, ProtoProviderObject, ProtoTaxIdentifier};
 
 #[derive(Debug)]
 pub struct InNetworkFileError {
@@ -58,16 +60,36 @@ pub async  fn in_network_file_root(reader: &mut JsonStreamReader<File>, producer
                 if data.provider_references.is_empty() {
                     eprintln!("Warning: provider_references is empty before processing in_network");
                 }
+                let mut provider_map: HashMap<i64, ProtoProviderMessage> = HashMap::new();
                 println!("Processing in_network");
                 counter = 0;
                 let mut offset = 0;
                 start_time = std::time::Instant::now();
+                for provider_reference in data.provider_references.iter() {
+                    let mut proto_provider_message = ProtoProviderMessage::new();
+                    for network_name in provider_reference.network_name.iter() {
+                        proto_provider_message.network_name.push(network_name.to_string());
+                    }
+                    for provider_group in provider_reference.provider_groups.iter() {
+                        let mut proto_provider_object = ProtoProviderObject::new();
+                        proto_provider_object.set_npi(provider_group.npi.iter().map(|x| x.to_string()).collect());
+                        let mut proto_tax_identifier = ProtoTaxIdentifier::new();
+                        if provider_group.tins.business_name.is_some() {
+                        proto_tax_identifier.set_business_name(provider_group.tins.business_name.clone().unwrap());
+                        }
+                        proto_tax_identifier.set_field_type(provider_group.tins.r#type.to_string());
+                        proto_tax_identifier.set_value(provider_group.tins.value.clone());
+                        proto_provider_object.set_tin(proto_tax_identifier);
+                        proto_provider_message.provider_groups.push(proto_provider_object);
+                    }
+                    provider_map.insert(provider_reference.provider_group_id, proto_provider_message);
+                }
                 reader.begin_array().unwrap();
                 let mut records = vec![];
                 loop {
                     let has_next = reader.has_next().unwrap();
                     if !has_next {
-                        submit_in_network(records, producer).await;
+                        submit_in_network(records, &provider_map, producer).await;
                         println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
                         records = vec![];
                         break;
@@ -82,7 +104,7 @@ pub async  fn in_network_file_root(reader: &mut JsonStreamReader<File>, producer
                         let start_time_packet = std::time::Instant::now();
                         tokio::spawn(async move {
                             let producer = create_producer();
-                            let message_count = submit_in_network(chunk, &producer).await;
+                            let message_count = submit_in_network(chunk, &provider_map, &producer).await;
                             println!("Submitted {} messages in {:.2?} ({:.2} messages/sec)", message_count, start_time_packet.elapsed(), message_count as f64 / start_time_packet.elapsed().as_secs_f64());
                             println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
                         });
@@ -159,7 +181,7 @@ pub async  fn in_network_file_root(reader: &mut JsonStreamReader<File>, producer
     Ok(data)
 }
 
-async fn submit_in_network(mut records: Vec<InNetworkObject>, producer: &ThreadedProducer<DefaultProducerContext>) ->i64 {
+async fn submit_in_network(mut records: Vec<InNetworkObject>,provider_map: &HashMap<i64, ProtoProviderMessage>, producer: &ThreadedProducer<DefaultProducerContext>) ->i64 {
     let mut count = 0;
     let start_time_packet = std::time::Instant::now();
     for record in records.drain(..) {
@@ -173,7 +195,7 @@ async fn submit_in_network(mut records: Vec<InNetworkObject>, producer: &Threade
         for rate in record.negotiated_rate.as_slice() {
             let mut t = ProtoProviderNegotiationKafkaMessage::new();
             t.set_procedure(proto_procedure.clone());
-            t.set_provider_ids(rate.provider_references.iter().map(|x| x.to_string()).collect());
+
             t.set_negotiated_prices(rate.negotiated_prices.iter().map(|x| {
                 let mut neg = ProtoNegotiatedPriceKafkaMessage::new();
                 if x.negotiated_type.is_some() {

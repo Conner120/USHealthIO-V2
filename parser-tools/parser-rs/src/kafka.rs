@@ -27,7 +27,7 @@
 pub struct ProtoProviderNegotiationKafkaMessage {
     // message fields
     pub procedure: ::protobuf::SingularPtrField<ProtoProcedureKafkaMessage>,
-    pub provider_ids: ::protobuf::RepeatedField<::std::string::String>,
+    pub provider_group: ::protobuf::RepeatedField<ProtoProviderMessage>,
     pub negotiated_prices: ::protobuf::RepeatedField<ProtoNegotiatedPriceKafkaMessage>,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
@@ -78,29 +78,29 @@ impl ProtoProviderNegotiationKafkaMessage {
         self.procedure.take().unwrap_or_else(|| ProtoProcedureKafkaMessage::new())
     }
 
-    // repeated string provider_ids = 2;
+    // repeated .provider.ProtoProviderMessage provider_group = 2;
 
 
-    pub fn get_provider_ids(&self) -> &[::std::string::String] {
-        &self.provider_ids
+    pub fn get_provider_group(&self) -> &[ProtoProviderMessage] {
+        &self.provider_group
     }
-    pub fn clear_provider_ids(&mut self) {
-        self.provider_ids.clear();
+    pub fn clear_provider_group(&mut self) {
+        self.provider_group.clear();
     }
 
     // Param is passed by value, moved
-    pub fn set_provider_ids(&mut self, v: ::protobuf::RepeatedField<::std::string::String>) {
-        self.provider_ids = v;
+    pub fn set_provider_group(&mut self, v: ::protobuf::RepeatedField<ProtoProviderMessage>) {
+        self.provider_group = v;
     }
 
     // Mutable pointer to the field.
-    pub fn mut_provider_ids(&mut self) -> &mut ::protobuf::RepeatedField<::std::string::String> {
-        &mut self.provider_ids
+    pub fn mut_provider_group(&mut self) -> &mut ::protobuf::RepeatedField<ProtoProviderMessage> {
+        &mut self.provider_group
     }
 
     // Take field
-    pub fn take_provider_ids(&mut self) -> ::protobuf::RepeatedField<::std::string::String> {
-        ::std::mem::replace(&mut self.provider_ids, ::protobuf::RepeatedField::new())
+    pub fn take_provider_group(&mut self) -> ::protobuf::RepeatedField<ProtoProviderMessage> {
+        ::std::mem::replace(&mut self.provider_group, ::protobuf::RepeatedField::new())
     }
 
     // repeated .provider.ProtoNegotiatedPriceKafkaMessage negotiated_prices = 3;
@@ -136,6 +136,11 @@ impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
                 return false;
             }
         };
+        for v in &self.provider_group {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
         for v in &self.negotiated_prices {
             if !v.is_initialized() {
                 return false;
@@ -152,7 +157,7 @@ impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
                     ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.procedure)?;
                 },
                 2 => {
-                    ::protobuf::rt::read_repeated_string_into(wire_type, is, &mut self.provider_ids)?;
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.provider_group)?;
                 },
                 3 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.negotiated_prices)?;
@@ -173,8 +178,9 @@ impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
-        for value in &self.provider_ids {
-            my_size += ::protobuf::rt::string_size(2, &value);
+        for value in &self.provider_group {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
         for value in &self.negotiated_prices {
             let len = value.compute_size();
@@ -191,8 +197,10 @@ impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         }
-        for v in &self.provider_ids {
-            os.write_string(2, &v)?;
+        for v in &self.provider_group {
+            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
         };
         for v in &self.negotiated_prices {
             os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
@@ -242,10 +250,10 @@ impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
                 |m: &ProtoProviderNegotiationKafkaMessage| { &m.procedure },
                 |m: &mut ProtoProviderNegotiationKafkaMessage| { &mut m.procedure },
             ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
-                "provider_ids",
-                |m: &ProtoProviderNegotiationKafkaMessage| { &m.provider_ids },
-                |m: &mut ProtoProviderNegotiationKafkaMessage| { &mut m.provider_ids },
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ProtoProviderMessage>>(
+                "provider_group",
+                |m: &ProtoProviderNegotiationKafkaMessage| { &m.provider_group },
+                |m: &mut ProtoProviderNegotiationKafkaMessage| { &mut m.provider_group },
             ));
             fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ProtoNegotiatedPriceKafkaMessage>>(
                 "negotiated_prices",
@@ -269,7 +277,7 @@ impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
 impl ::protobuf::Clear for ProtoProviderNegotiationKafkaMessage {
     fn clear(&mut self) {
         self.procedure.clear();
-        self.provider_ids.clear();
+        self.provider_group.clear();
         self.negotiated_prices.clear();
         self.unknown_fields.clear();
     }
@@ -282,6 +290,671 @@ impl ::std::fmt::Debug for ProtoProviderNegotiationKafkaMessage {
 }
 
 impl ::protobuf::reflect::ProtobufValue for ProtoProviderNegotiationKafkaMessage {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct ProtoProviderMessage {
+    // message fields
+    pub network_name: ::protobuf::RepeatedField<::std::string::String>,
+    pub provider_groups: ::protobuf::RepeatedField<ProtoProviderObject>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a ProtoProviderMessage {
+    fn default() -> &'a ProtoProviderMessage {
+        <ProtoProviderMessage as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ProtoProviderMessage {
+    pub fn new() -> ProtoProviderMessage {
+        ::std::default::Default::default()
+    }
+
+    // repeated string network_name = 1;
+
+
+    pub fn get_network_name(&self) -> &[::std::string::String] {
+        &self.network_name
+    }
+    pub fn clear_network_name(&mut self) {
+        self.network_name.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_network_name(&mut self, v: ::protobuf::RepeatedField<::std::string::String>) {
+        self.network_name = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_network_name(&mut self) -> &mut ::protobuf::RepeatedField<::std::string::String> {
+        &mut self.network_name
+    }
+
+    // Take field
+    pub fn take_network_name(&mut self) -> ::protobuf::RepeatedField<::std::string::String> {
+        ::std::mem::replace(&mut self.network_name, ::protobuf::RepeatedField::new())
+    }
+
+    // repeated .provider.ProtoProviderObject provider_groups = 2;
+
+
+    pub fn get_provider_groups(&self) -> &[ProtoProviderObject] {
+        &self.provider_groups
+    }
+    pub fn clear_provider_groups(&mut self) {
+        self.provider_groups.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_provider_groups(&mut self, v: ::protobuf::RepeatedField<ProtoProviderObject>) {
+        self.provider_groups = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_provider_groups(&mut self) -> &mut ::protobuf::RepeatedField<ProtoProviderObject> {
+        &mut self.provider_groups
+    }
+
+    // Take field
+    pub fn take_provider_groups(&mut self) -> ::protobuf::RepeatedField<ProtoProviderObject> {
+        ::std::mem::replace(&mut self.provider_groups, ::protobuf::RepeatedField::new())
+    }
+}
+
+impl ::protobuf::Message for ProtoProviderMessage {
+    fn is_initialized(&self) -> bool {
+        for v in &self.provider_groups {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_repeated_string_into(wire_type, is, &mut self.network_name)?;
+                },
+                2 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.provider_groups)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        for value in &self.network_name {
+            my_size += ::protobuf::rt::string_size(1, &value);
+        };
+        for value in &self.provider_groups {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        for v in &self.network_name {
+            os.write_string(1, &v)?;
+        };
+        for v in &self.provider_groups {
+            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> ProtoProviderMessage {
+        ProtoProviderMessage::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "network_name",
+                |m: &ProtoProviderMessage| { &m.network_name },
+                |m: &mut ProtoProviderMessage| { &mut m.network_name },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ProtoProviderObject>>(
+                "provider_groups",
+                |m: &ProtoProviderMessage| { &m.provider_groups },
+                |m: &mut ProtoProviderMessage| { &mut m.provider_groups },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ProtoProviderMessage>(
+                "ProtoProviderMessage",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static ProtoProviderMessage {
+        static instance: ::protobuf::rt::LazyV2<ProtoProviderMessage> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(ProtoProviderMessage::new)
+    }
+}
+
+impl ::protobuf::Clear for ProtoProviderMessage {
+    fn clear(&mut self) {
+        self.network_name.clear();
+        self.provider_groups.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for ProtoProviderMessage {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ProtoProviderMessage {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct ProtoProviderObject {
+    // message fields
+    pub npi: ::protobuf::RepeatedField<::std::string::String>,
+    pub tin: ::protobuf::SingularPtrField<ProtoTaxIdentifier>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a ProtoProviderObject {
+    fn default() -> &'a ProtoProviderObject {
+        <ProtoProviderObject as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ProtoProviderObject {
+    pub fn new() -> ProtoProviderObject {
+        ::std::default::Default::default()
+    }
+
+    // repeated string npi = 1;
+
+
+    pub fn get_npi(&self) -> &[::std::string::String] {
+        &self.npi
+    }
+    pub fn clear_npi(&mut self) {
+        self.npi.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_npi(&mut self, v: ::protobuf::RepeatedField<::std::string::String>) {
+        self.npi = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_npi(&mut self) -> &mut ::protobuf::RepeatedField<::std::string::String> {
+        &mut self.npi
+    }
+
+    // Take field
+    pub fn take_npi(&mut self) -> ::protobuf::RepeatedField<::std::string::String> {
+        ::std::mem::replace(&mut self.npi, ::protobuf::RepeatedField::new())
+    }
+
+    // .provider.ProtoTaxIdentifier tin = 2;
+
+
+    pub fn get_tin(&self) -> &ProtoTaxIdentifier {
+        self.tin.as_ref().unwrap_or_else(|| <ProtoTaxIdentifier as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_tin(&mut self) {
+        self.tin.clear();
+    }
+
+    pub fn has_tin(&self) -> bool {
+        self.tin.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_tin(&mut self, v: ProtoTaxIdentifier) {
+        self.tin = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_tin(&mut self) -> &mut ProtoTaxIdentifier {
+        if self.tin.is_none() {
+            self.tin.set_default();
+        }
+        self.tin.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_tin(&mut self) -> ProtoTaxIdentifier {
+        self.tin.take().unwrap_or_else(|| ProtoTaxIdentifier::new())
+    }
+}
+
+impl ::protobuf::Message for ProtoProviderObject {
+    fn is_initialized(&self) -> bool {
+        for v in &self.tin {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_repeated_string_into(wire_type, is, &mut self.npi)?;
+                },
+                2 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.tin)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        for value in &self.npi {
+            my_size += ::protobuf::rt::string_size(1, &value);
+        };
+        if let Some(ref v) = self.tin.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        for v in &self.npi {
+            os.write_string(1, &v)?;
+        };
+        if let Some(ref v) = self.tin.as_ref() {
+            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> ProtoProviderObject {
+        ProtoProviderObject::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "npi",
+                |m: &ProtoProviderObject| { &m.npi },
+                |m: &mut ProtoProviderObject| { &mut m.npi },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ProtoTaxIdentifier>>(
+                "tin",
+                |m: &ProtoProviderObject| { &m.tin },
+                |m: &mut ProtoProviderObject| { &mut m.tin },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ProtoProviderObject>(
+                "ProtoProviderObject",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static ProtoProviderObject {
+        static instance: ::protobuf::rt::LazyV2<ProtoProviderObject> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(ProtoProviderObject::new)
+    }
+}
+
+impl ::protobuf::Clear for ProtoProviderObject {
+    fn clear(&mut self) {
+        self.npi.clear();
+        self.tin.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for ProtoProviderObject {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ProtoProviderObject {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct ProtoTaxIdentifier {
+    // message fields
+    pub field_type: ::std::string::String,
+    pub value: ::std::string::String,
+    pub business_name: ::std::string::String,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a ProtoTaxIdentifier {
+    fn default() -> &'a ProtoTaxIdentifier {
+        <ProtoTaxIdentifier as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ProtoTaxIdentifier {
+    pub fn new() -> ProtoTaxIdentifier {
+        ::std::default::Default::default()
+    }
+
+    // string type = 1;
+
+
+    pub fn get_field_type(&self) -> &str {
+        &self.field_type
+    }
+    pub fn clear_field_type(&mut self) {
+        self.field_type.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_field_type(&mut self, v: ::std::string::String) {
+        self.field_type = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_field_type(&mut self) -> &mut ::std::string::String {
+        &mut self.field_type
+    }
+
+    // Take field
+    pub fn take_field_type(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.field_type, ::std::string::String::new())
+    }
+
+    // string value = 2;
+
+
+    pub fn get_value(&self) -> &str {
+        &self.value
+    }
+    pub fn clear_value(&mut self) {
+        self.value.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_value(&mut self, v: ::std::string::String) {
+        self.value = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_value(&mut self) -> &mut ::std::string::String {
+        &mut self.value
+    }
+
+    // Take field
+    pub fn take_value(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.value, ::std::string::String::new())
+    }
+
+    // string business_name = 3;
+
+
+    pub fn get_business_name(&self) -> &str {
+        &self.business_name
+    }
+    pub fn clear_business_name(&mut self) {
+        self.business_name.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_business_name(&mut self, v: ::std::string::String) {
+        self.business_name = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_business_name(&mut self) -> &mut ::std::string::String {
+        &mut self.business_name
+    }
+
+    // Take field
+    pub fn take_business_name(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.business_name, ::std::string::String::new())
+    }
+}
+
+impl ::protobuf::Message for ProtoTaxIdentifier {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.field_type)?;
+                },
+                2 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.value)?;
+                },
+                3 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.business_name)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if !self.field_type.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.field_type);
+        }
+        if !self.value.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.value);
+        }
+        if !self.business_name.is_empty() {
+            my_size += ::protobuf::rt::string_size(3, &self.business_name);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if !self.field_type.is_empty() {
+            os.write_string(1, &self.field_type)?;
+        }
+        if !self.value.is_empty() {
+            os.write_string(2, &self.value)?;
+        }
+        if !self.business_name.is_empty() {
+            os.write_string(3, &self.business_name)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> ProtoTaxIdentifier {
+        ProtoTaxIdentifier::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "type",
+                |m: &ProtoTaxIdentifier| { &m.field_type },
+                |m: &mut ProtoTaxIdentifier| { &mut m.field_type },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "value",
+                |m: &ProtoTaxIdentifier| { &m.value },
+                |m: &mut ProtoTaxIdentifier| { &mut m.value },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "business_name",
+                |m: &ProtoTaxIdentifier| { &m.business_name },
+                |m: &mut ProtoTaxIdentifier| { &mut m.business_name },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ProtoTaxIdentifier>(
+                "ProtoTaxIdentifier",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static ProtoTaxIdentifier {
+        static instance: ::protobuf::rt::LazyV2<ProtoTaxIdentifier> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(ProtoTaxIdentifier::new)
+    }
+}
+
+impl ::protobuf::Clear for ProtoTaxIdentifier {
+    fn clear(&mut self) {
+        self.field_type.clear();
+        self.value.clear();
+        self.business_name.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for ProtoTaxIdentifier {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ProtoTaxIdentifier {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
@@ -1100,26 +1773,35 @@ impl ::protobuf::reflect::ProtobufValue for ProtoProcedureKafkaMessage {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x0bkafka.proto\x12\x08provider\"\xee\x01\n$ProtoProviderNegotiationKa\
+    \n\x0bkafka.proto\x12\x08provider\"\x92\x02\n$ProtoProviderNegotiationKa\
     fkaMessage\x12D\n\tprocedure\x18\x01\x20\x01(\x0b2$.provider.ProtoProced\
-    ureKafkaMessageR\tprocedureB\0\x12#\n\x0cprovider_ids\x18\x02\x20\x03(\t\
-    R\x0bproviderIdsB\0\x12Y\n\x11negotiated_prices\x18\x03\x20\x03(\x0b2*.p\
-    rovider.ProtoNegotiatedPriceKafkaMessageR\x10negotiatedPricesB\0:\0\"\
-    \xfc\x02\n\x20ProtoNegotiatedPriceKafkaMessage\x12)\n\x0fnegotiated_type\
-    \x18\x01\x20\x01(\tR\x0enegotiatedTypeB\0\x12)\n\x0fnegotiated_rate\x18\
-    \x02\x20\x01(\x01R\x0enegotiatedRateB\0\x12)\n\x0fexpiration_date\x18\
-    \x03\x20\x01(\tR\x0eexpirationDateB\0\x12#\n\x0cservice_code\x18\x04\x20\
-    \x03(\tR\x0bserviceCodeB\0\x12%\n\rbilling_class\x18\x05\x20\x01(\tR\x0c\
-    billingClassB\0\x12\x1a\n\x07setting\x18\x06\x20\x01(\tR\x07settingB\0\
-    \x124\n\x15billing_code_modifier\x18\x07\x20\x03(\tR\x13billingCodeModif\
-    ierB\0\x127\n\x16additional_information\x18\x08\x20\x03(\tR\x15additiona\
-    lInformationB\0:\0\"\xa3\x02\n\x1aProtoProcedureKafkaMessage\x129\n\x17n\
-    egotiation_arrangement\x18\x01\x20\x01(\tR\x16negotiationArrangementB\0\
-    \x12\x14\n\x04name\x18\x02\x20\x01(\tR\x04nameB\0\x12,\n\x11billing_code\
-    _type\x18\x03\x20\x01(\tR\x0fbillingCodeTypeB\0\x12;\n\x19billing_code_t\
-    ype_version\x18\x04\x20\x01(\tR\x16billingCodeTypeVersionB\0\x12#\n\x0cb\
-    illing_code\x18\x05\x20\x01(\tR\x0bbillingCodeB\0\x12\"\n\x0bdescription\
-    \x18\x06\x20\x01(\tR\x0bdescriptionB\0:\0B\0b\x06proto3\
+    ureKafkaMessageR\tprocedureB\0\x12G\n\x0eprovider_group\x18\x02\x20\x03(\
+    \x0b2\x1e.provider.ProtoProviderMessageR\rproviderGroupB\0\x12Y\n\x11neg\
+    otiated_prices\x18\x03\x20\x03(\x0b2*.provider.ProtoNegotiatedPriceKafka\
+    MessageR\x10negotiatedPricesB\0:\0\"\x87\x01\n\x14ProtoProviderMessage\
+    \x12#\n\x0cnetwork_name\x18\x01\x20\x03(\tR\x0bnetworkNameB\0\x12H\n\x0f\
+    provider_groups\x18\x02\x20\x03(\x0b2\x1d.provider.ProtoProviderObjectR\
+    \x0eproviderGroupsB\0:\0\"]\n\x13ProtoProviderObject\x12\x12\n\x03npi\
+    \x18\x01\x20\x03(\tR\x03npiB\0\x120\n\x03tin\x18\x02\x20\x01(\x0b2\x1c.p\
+    rovider.ProtoTaxIdentifierR\x03tinB\0:\0\"k\n\x12ProtoTaxIdentifier\x12\
+    \x14\n\x04type\x18\x01\x20\x01(\tR\x04typeB\0\x12\x16\n\x05value\x18\x02\
+    \x20\x01(\tR\x05valueB\0\x12%\n\rbusiness_name\x18\x03\x20\x01(\tR\x0cbu\
+    sinessNameB\0:\0\"\xfc\x02\n\x20ProtoNegotiatedPriceKafkaMessage\x12)\n\
+    \x0fnegotiated_type\x18\x01\x20\x01(\tR\x0enegotiatedTypeB\0\x12)\n\x0fn\
+    egotiated_rate\x18\x02\x20\x01(\x01R\x0enegotiatedRateB\0\x12)\n\x0fexpi\
+    ration_date\x18\x03\x20\x01(\tR\x0eexpirationDateB\0\x12#\n\x0cservice_c\
+    ode\x18\x04\x20\x03(\tR\x0bserviceCodeB\0\x12%\n\rbilling_class\x18\x05\
+    \x20\x01(\tR\x0cbillingClassB\0\x12\x1a\n\x07setting\x18\x06\x20\x01(\tR\
+    \x07settingB\0\x124\n\x15billing_code_modifier\x18\x07\x20\x03(\tR\x13bi\
+    llingCodeModifierB\0\x127\n\x16additional_information\x18\x08\x20\x03(\t\
+    R\x15additionalInformationB\0:\0\"\xa3\x02\n\x1aProtoProcedureKafkaMessa\
+    ge\x129\n\x17negotiation_arrangement\x18\x01\x20\x01(\tR\x16negotiationA\
+    rrangementB\0\x12\x14\n\x04name\x18\x02\x20\x01(\tR\x04nameB\0\x12,\n\
+    \x11billing_code_type\x18\x03\x20\x01(\tR\x0fbillingCodeTypeB\0\x12;\n\
+    \x19billing_code_type_version\x18\x04\x20\x01(\tR\x16billingCodeTypeVers\
+    ionB\0\x12#\n\x0cbilling_code\x18\x05\x20\x01(\tR\x0bbillingCodeB\0\x12\
+    \"\n\x0bdescription\x18\x06\x20\x01(\tR\x0bdescriptionB\0:\0B\0b\x06prot\
+    o3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

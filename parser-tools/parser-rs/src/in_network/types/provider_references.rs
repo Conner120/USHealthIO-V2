@@ -10,14 +10,14 @@ use crate::in_network::types::providers_object::{providers_object, ProvidersObje
 #[derive(Debug, Clone, Serialize)]
 pub struct ProviderReferenceObject {
     pub provider_group_id: i64,
-    pub network_name: String,
+    pub network_name: Vec<String>,
     pub provider_groups: Vec<ProvidersObject>,
 }
 
 pub fn provider_reference_object(reader: &mut JsonStreamReader<File>) -> Result<ProviderReferenceObject, InNetworkFileError> {
     let mut data = ProviderReferenceObject {
         provider_group_id: 0,
-        network_name: "".to_string(),
+        network_name: vec![],
         provider_groups: vec![],
     };
     reader.begin_object().expect("TODO: panic message");
@@ -31,7 +31,15 @@ pub fn provider_reference_object(reader: &mut JsonStreamReader<File>) -> Result<
                 data.provider_group_id = reader.next_number().unwrap().unwrap();
             }
             "network_name" => {
-                data.network_name = reader.next_string().unwrap()
+                reader.begin_array().unwrap();
+                loop {
+                    let has_next = reader.has_next().unwrap();
+                    if !has_next {
+                        break;
+                    }
+                    let name = reader.next_string().unwrap();
+                    data.network_name.push(name);
+                }
             }
             "provider_groups" => {
                 reader.begin_array().unwrap();

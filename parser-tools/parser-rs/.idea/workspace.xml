@@ -12,27 +12,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="test">
-      <change afterPath="$PROJECT_DIR$/src/in_network/file_root.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/in_network/kafka_messages.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/in_network/mod.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/in_network/types/bundled_code.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/in_network/types/in_network.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/in_network/types/mod.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/in_network/types/negotiated_price_object.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/in_network/types/negotiated_rates.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/in_network/types/providers_object.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/in_network/types/tax_identifier.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/protos/kafka.proto" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../parser-py-v3/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/../parser-py-v3/test.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/root_fields.rs" beforeDir="false" afterPath="$PROJECT_DIR$/build.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/InNetworkParser.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../src/InNetworkParser.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../src/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/file_root.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/file_root.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/kafka.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/kafka.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/protos/kafka.proto" beforeDir="false" afterPath="$PROJECT_DIR$/src/protos/kafka.proto" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -73,7 +57,7 @@
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.rust.reset.selective.auto.import&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/connerreitmeier/USHealthIO/dac-parser/parser-rs&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/connerreitmeier/ushio-v2/parser-tools/parser-rs&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -163,6 +147,9 @@
       <workItem from="1762111185332" duration="5516000" />
       <workItem from="1762117985809" duration="1458000" />
       <workItem from="1762119459100" duration="4175000" />
+      <workItem from="1762715365282" duration="12845000" />
+      <workItem from="1763001147680" duration="2921000" />
+      <workItem from="1763686720308" duration="161000" />
     </task>
     <task id="LOCAL-00001" summary="test">
       <option name="closed" value="true" />
@@ -181,6 +168,17 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="test" />
     <option name="LAST_COMMIT_MESSAGE" value="test" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/src/in_network/file_root.rs</url>
+          <line>175</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
