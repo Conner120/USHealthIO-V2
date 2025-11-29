@@ -211,6 +211,7 @@ model procedure_code {
 model provider_group {
   id                     String                    @id @db.VarChar(50)
   groupName              String                    @db.VarChar(200)
+  insuranceCarrierId     String                    @db.VarChar(50)
   createdAt              DateTime                  @default(now())
   createdBy              String                    @db.VarChar(50)
   updatedAt              DateTime                  @updatedAt
@@ -226,6 +227,9 @@ model provider_group_provider {
   providerGroupId String         @db.VarChar(50)
   provider        provider       @relation(fields: [providerId], references: [id])
   providerId      String         @db.VarChar(50)
+  firstSeen       DateTime       @default(now())
+  lastSeen        DateTime       @default(now())
+  isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
 }
 

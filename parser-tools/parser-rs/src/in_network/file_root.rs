@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 use std::fs::File;
 use std::iter::Map;
 use std::time::Duration;
@@ -12,6 +13,7 @@ use crate::in_network::kafka_messages::{NegotiatedPriceKafkaMessage, ProcedureKa
 use crate::in_network::types::in_network::{in_network_object, InNetworkObject};
 use crate::in_network::types::provider_references::ProviderReferenceObject;
 use crate::kafka::{ProtoNegotiatedPriceKafkaMessage, ProtoProcedureKafkaMessage, ProtoProviderMessage, ProtoProviderNegotiationKafkaMessage, ProtoProviderObject, ProtoTaxIdentifier};
+
 
 #[derive(Debug)]
 pub struct InNetworkFileError {
@@ -32,7 +34,7 @@ pub struct InNetworkFileRoot {
     pub in_network: Vec<InNetworkObject>,
     pub version: String,
 }
-pub async  fn in_network_file_root(reader: &mut JsonStreamReader<File>, producer: &ThreadedProducer<DefaultProducerContext>) -> Result<InNetworkFileRoot, InNetworkFileError> {
+pub async fn in_network_file_root(reader: &mut JsonStreamReader<File>, producer: &ThreadedProducer<DefaultProducerContext>) -> Result<InNetworkFileRoot, InNetworkFileError> {
     let mut data = InNetworkFileRoot {
         reporting_entity_name: String::new(),
         reporting_entity_type: "".to_string(),
@@ -87,9 +89,10 @@ pub async  fn in_network_file_root(reader: &mut JsonStreamReader<File>, producer
                 reader.begin_array().unwrap();
                 let mut records = vec![];
                 loop {
+                    let provider_map_local = provider_map.clone();
                     let has_next = reader.has_next().unwrap();
                     if !has_next {
-                        submit_in_network(records, &provider_map, producer).await;
+                        submit_in_network(records, &provider_map_local, producer).await;
                         println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
                         records = vec![];
                         break;
@@ -104,7 +107,7 @@ pub async  fn in_network_file_root(reader: &mut JsonStreamReader<File>, producer
                         let start_time_packet = std::time::Instant::now();
                         tokio::spawn(async move {
                             let producer = create_producer();
-                            let message_count = submit_in_network(chunk, &provider_map, &producer).await;
+                            let message_count = submit_in_network(chunk, &provider_map_local, &producer).await;
                             println!("Submitted {} messages in {:.2?} ({:.2} messages/sec)", message_count, start_time_packet.elapsed(), message_count as f64 / start_time_packet.elapsed().as_secs_f64());
                             println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
                         });
@@ -195,7 +198,17 @@ async fn submit_in_network(mut records: Vec<InNetworkObject>,provider_map: &Hash
         for rate in record.negotiated_rate.as_slice() {
             let mut t = ProtoProviderNegotiationKafkaMessage::new();
             t.set_procedure(proto_procedure.clone());
-
+            t.set_provider_group(rate.provider_references.iter().map(|x| {
+                let mut prov = ProtoProviderMessage::new();
+                let provider = provider_map.get(x);
+                if provider.is_none() {
+                    eprintln!("Provider {} not found in provider_map", x);
+                }
+                let provider = provider.unwrap();
+                prov.set_network_name(provider.network_name.clone());
+                prov.set_provider_groups(provider.provider_groups.clone());
+                prov
+            }).collect());
             t.set_negotiated_prices(rate.negotiated_prices.iter().map(|x| {
                 let mut neg = ProtoNegotiatedPriceKafkaMessage::new();
                 if x.negotiated_type.is_some() {
@@ -225,7 +238,14 @@ async fn submit_in_network(mut records: Vec<InNetworkObject>,provider_map: &Hash
                 neg
             }).collect());
             let bytes = t.write_to_bytes().unwrap();
-            let base_record = BaseRecord::to("in-network-rates").key(&[])
+            let mut topic = "in-network-file".to_string();
+            if env::var("KAFKA_TOPIC").is_ok() {
+                let topic_env = env::var("KAFKA_TOPIC").unwrap();
+                let t = format!("{topic_env}-in-network-file");
+                topic = t;
+            }
+            let base_record = BaseRecord::to(&topic
+            ).key(&[])
                 .payload(&bytes);
             count+=1;
             match producer.send(base_record) {

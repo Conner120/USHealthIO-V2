@@ -7,6 +7,9 @@ let t = BigInt(0);
 export async function taskRoot(topicInput: String, taskPayload: TaskPayload, heartbeat?: () => Promise<void>) {
     const topic = topicInput.replace(process.env.KAFKA_PREFIX as string, '');
     if (topic === 'in-network-file') {
+        if (taskPayload.payload.url.includes('sagamorehn.com')) {
+            return;
+        }
         console.log("Processing in-network file with payload:", taskPayload);
         let data = await getFile(taskPayload.payload.url, taskPayload.id);
         if (!data.success) {
@@ -39,7 +42,7 @@ export async function taskRoot(topicInput: String, taskPayload: TaskPayload, hea
         redis.incrby(`${taskPayload.payload.jobId}:IN_NETWORK_TOTAL_BYTES_PROCESSED`, sizeNum);
         redis.incrby(`${taskPayload.payload.jobId}:IN_NETWORK_TOTAL_FILES_PROCESSED`, 1);
         // Call the in-network task handler
-    } else if (topic === 'allowed-amount') {
+    } else if (topic === 'allowed-amount-file') {
         console.log("Processing allowed-amount file with payload:", taskPayload);
         let data = await fetch(taskPayload.payload.url);
         if (data.status !== 200) {
@@ -85,6 +88,6 @@ export async function taskRoot(topicInput: String, taskPayload: TaskPayload, hea
 
 export interface TaskPayload {
     id: string,
-    jobType: 'in-network-file' | 'allowed-amount' | 'insurance-source-scan-jobs',
+    jobType: 'in-network-file' | 'allowed-amount-file' | 'insurance-source-scan-jobs',
     payload: any,
 }

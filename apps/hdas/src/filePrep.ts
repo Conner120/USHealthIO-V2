@@ -99,7 +99,7 @@ export async function getFile(url: string, jobId: string): Promise<{
     for (let file of finalFiles) {
         console.log(`Parsing file: ${file}`);
         // add parsing logic here as needed
-        await $`../../parser-tools/parser-rs/target/release/main /tmp/${id}/${file}`;
+        await $`../../parser-tools/parser-rs/target/release/main /tmp/${id}/${file} in_network_rates`;
     }
 
     await $`rm -rf /tmp/${id}`;

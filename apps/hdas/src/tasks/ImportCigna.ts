@@ -134,7 +134,7 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
         }
     }
     // split into chunks of 100
-    const chunkSize = 100;
+    const chunkSize = 10;
     for (let i = 0; i < filesToImport.filter(f => f.file.type === "in_network").length; i += chunkSize) {
         const chunk = filesToImport.filter(f => f.file.type === "in_network").slice(i, i + chunkSize);
         const chunkDatabase: Prisma.InsuranceScanJobCreateManyInput[] = chunk.map(fileToImport => ({
@@ -165,7 +165,7 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
                     payload: {
                         sourceType: 'CIGNA_INDEX_API',
                         url: fileToImport.fileUrl!,
-                        reportingPlans: filesToImport.find(f => f.file.url === fileToImport.fileUrl!)?.reportingPlans || [],
+                        // reportingPlans: filesToImport.find(f => f.file.url === fileToImport.fileUrl!)?.reportingPlans || [],
                         insuranceCompanyId: importSource?.insuranceCompanyId || null,
                         insuranceImportSourceId: importSource?.id || null,
                     }
@@ -200,11 +200,11 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             messages: chunkDatabase.map(fileToImport => ({
                 value: JSON.stringify({
                     id: fileToImport.id,
-                    topic: 'allowed-amount',
+                    topic: 'allowed-amount-file',
                     payload: {
                         sourceType: 'CIGNA_INDEX_API',
                         url: fileToImport.fileUrl!,
-                        reportingPlans: filesToImport.find(f => f.file.url === fileToImport.fileUrl!)?.reportingPlans || [],
+                        // reportingPlans: filesToImport.find(f => f.file.url === fileToImport.fileUrl!)?.reportingPlans || [],
                         insuranceCompanyId: importSource?.insuranceCompanyId || null,
                         insuranceImportSourceId: importSource?.id || null,
                     }
@@ -330,11 +330,6 @@ async function getAndUpsertPlan(planData: {
     }));
     await prisma.insurancePlan.createMany({
         data: newPlansData
-    });
-    const allPlans = await prisma.insurancePlan.findMany({
-        where: {
-            insuranceCompanyId: insurance_company_id
-        }
     });
     return [
         ...existingPlans.map(p => p.id),

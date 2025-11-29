@@ -1,0 +1,26 @@
+{
+  "name": "hdsave",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "prisma": "^6.18.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.2"
+  },
+  "scripts": {
+    "dev": "nodemon",
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "@paralleldrive/cuid2": "^3.0.4",
+    "@repo/database": "*",
+    "@repo/object-hash": "*",
+    "axios": "^1.13.2",
+    "kafkajs": "^2.2.4",
+    "@repo/id-gen": "*",
+    "nodemon": "^3.1.10"
+  }
+}

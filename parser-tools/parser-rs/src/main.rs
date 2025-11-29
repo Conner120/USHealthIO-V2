@@ -1,6 +1,6 @@
 mod in_network;
 mod kafka;
-use std::fs;
+use std::{env, fs};
 use struson::reader::{JsonStreamReader};
 use crate::in_network::file_root::in_network_file_root;
 use rdkafka::ClientConfig;
@@ -25,11 +25,40 @@ async fn main() {
     // create kafka producer with arc
     let producer = create_producer();
     // get file path as argument
-    let path = std::env::args().nth(1).expect("No file path provided");
+    let args: Vec<String> = env::args().collect();
+    let path = args.get(1).expect("No path provided");
     // let file_bytes = fs::read("test.json").expect("file not found");
     // file reader without loading entire file into memory
     let reader = fs::File::open(path).expect("file not found");
     // counter to measure processed in_network objects
     let mut stream = JsonStreamReader::new(reader);
-    in_network_file_root(&mut stream,&producer).await.expect("TODO: panic message");
+
+    // The first argument is the path to the executable
+    let first_arg = parse_args();
+    match first_arg {
+        Args::InNetworkRates => {
+            in_network_file_root(&mut stream,&producer).await.expect("TODO: panic message");
+        },
+        _ => {
+            return;
+        }
+    }
+}
+
+fn parse_args() -> Args {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 3 {
+        panic!("No arguments provided.");
+    }
+    match args[2].as_str() {
+        "in_network_rates" => Args::InNetworkRates,
+        "in_network_providers" => Args::InNetworkProviders,
+        _ => panic!("Invalid argument: {}", args[1]),
+    }
+}
+
+#[derive(Debug)]
+enum Args {
+    InNetworkRates,
+    InNetworkProviders,
 }
