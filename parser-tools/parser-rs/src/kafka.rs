@@ -29,6 +29,7 @@ pub struct ProtoProviderNegotiationKafkaMessage {
     pub procedure: ::protobuf::SingularPtrField<ProtoProcedureKafkaMessage>,
     pub provider_group: ::protobuf::RepeatedField<ProtoProviderMessage>,
     pub negotiated_prices: ::protobuf::RepeatedField<ProtoNegotiatedPriceKafkaMessage>,
+    pub insurance_scan_job_id: ::std::string::String,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
@@ -127,6 +128,32 @@ impl ProtoProviderNegotiationKafkaMessage {
     pub fn take_negotiated_prices(&mut self) -> ::protobuf::RepeatedField<ProtoNegotiatedPriceKafkaMessage> {
         ::std::mem::replace(&mut self.negotiated_prices, ::protobuf::RepeatedField::new())
     }
+
+    // string insurance_scan_job_id = 4;
+
+
+    pub fn get_insurance_scan_job_id(&self) -> &str {
+        &self.insurance_scan_job_id
+    }
+    pub fn clear_insurance_scan_job_id(&mut self) {
+        self.insurance_scan_job_id.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_insurance_scan_job_id(&mut self, v: ::std::string::String) {
+        self.insurance_scan_job_id = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_insurance_scan_job_id(&mut self) -> &mut ::std::string::String {
+        &mut self.insurance_scan_job_id
+    }
+
+    // Take field
+    pub fn take_insurance_scan_job_id(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.insurance_scan_job_id, ::std::string::String::new())
+    }
 }
 
 impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
@@ -162,6 +189,9 @@ impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
                 3 => {
                     ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.negotiated_prices)?;
                 },
+                4 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.insurance_scan_job_id)?;
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -186,6 +216,9 @@ impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
+        if !self.insurance_scan_job_id.is_empty() {
+            my_size += ::protobuf::rt::string_size(4, &self.insurance_scan_job_id);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -207,6 +240,9 @@ impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         };
+        if !self.insurance_scan_job_id.is_empty() {
+            os.write_string(4, &self.insurance_scan_job_id)?;
+        }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -260,6 +296,11 @@ impl ::protobuf::Message for ProtoProviderNegotiationKafkaMessage {
                 |m: &ProtoProviderNegotiationKafkaMessage| { &m.negotiated_prices },
                 |m: &mut ProtoProviderNegotiationKafkaMessage| { &mut m.negotiated_prices },
             ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "insurance_scan_job_id",
+                |m: &ProtoProviderNegotiationKafkaMessage| { &m.insurance_scan_job_id },
+                |m: &mut ProtoProviderNegotiationKafkaMessage| { &mut m.insurance_scan_job_id },
+            ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<ProtoProviderNegotiationKafkaMessage>(
                 "ProtoProviderNegotiationKafkaMessage",
                 fields,
@@ -279,6 +320,7 @@ impl ::protobuf::Clear for ProtoProviderNegotiationKafkaMessage {
         self.procedure.clear();
         self.provider_group.clear();
         self.negotiated_prices.clear();
+        self.insurance_scan_job_id.clear();
         self.unknown_fields.clear();
     }
 }
@@ -1773,15 +1815,16 @@ impl ::protobuf::reflect::ProtobufValue for ProtoProcedureKafkaMessage {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x0bkafka.proto\x12\x08provider\"\x92\x02\n$ProtoProviderNegotiationKa\
+    \n\x0bkafka.proto\x12\x08provider\"\xc7\x02\n$ProtoProviderNegotiationKa\
     fkaMessage\x12D\n\tprocedure\x18\x01\x20\x01(\x0b2$.provider.ProtoProced\
     ureKafkaMessageR\tprocedureB\0\x12G\n\x0eprovider_group\x18\x02\x20\x03(\
     \x0b2\x1e.provider.ProtoProviderMessageR\rproviderGroupB\0\x12Y\n\x11neg\
     otiated_prices\x18\x03\x20\x03(\x0b2*.provider.ProtoNegotiatedPriceKafka\
-    MessageR\x10negotiatedPricesB\0:\0\"\x87\x01\n\x14ProtoProviderMessage\
-    \x12#\n\x0cnetwork_name\x18\x01\x20\x03(\tR\x0bnetworkNameB\0\x12H\n\x0f\
-    provider_groups\x18\x02\x20\x03(\x0b2\x1d.provider.ProtoProviderObjectR\
-    \x0eproviderGroupsB\0:\0\"]\n\x13ProtoProviderObject\x12\x12\n\x03npi\
+    MessageR\x10negotiatedPricesB\0\x123\n\x15insurance_scan_job_id\x18\x04\
+    \x20\x01(\tR\x12insuranceScanJobIdB\0:\0\"\x87\x01\n\x14ProtoProviderMes\
+    sage\x12#\n\x0cnetwork_name\x18\x01\x20\x03(\tR\x0bnetworkNameB\0\x12H\n\
+    \x0fprovider_groups\x18\x02\x20\x03(\x0b2\x1d.provider.ProtoProviderObje\
+    ctR\x0eproviderGroupsB\0:\0\"]\n\x13ProtoProviderObject\x12\x12\n\x03npi\
     \x18\x01\x20\x03(\tR\x03npiB\0\x120\n\x03tin\x18\x02\x20\x01(\x0b2\x1c.p\
     rovider.ProtoTaxIdentifierR\x03tinB\0:\0\"k\n\x12ProtoTaxIdentifier\x12\
     \x14\n\x04type\x18\x01\x20\x01(\tR\x04typeB\0\x12\x16\n\x05value\x18\x02\

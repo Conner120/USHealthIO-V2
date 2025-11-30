@@ -7,6 +7,7 @@ message ProtoProviderNegotiationKafkaMessage {
   ProtoProcedureKafkaMessage procedure = 1;
   repeated ProtoProviderMessage provider_group = 2;
   repeated ProtoNegotiatedPriceKafkaMessage negotiated_prices = 3;
+  string insurance_scan_job_id = 4;
 }
 // Nested message for negotiated prices
 message ProtoProviderMessage {

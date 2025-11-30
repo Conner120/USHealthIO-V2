@@ -43,6 +43,7 @@ pub struct InNetworkFileRoot {
 pub async fn in_network_file_root(
     reader: &mut JsonStreamReader<File>,
     producer: &ThreadedProducer<DefaultProducerContext>,
+    job_id: &String
 ) -> Result<InNetworkFileRoot, InNetworkFileError> {
     let mut data = InNetworkFileRoot {
         reporting_entity_name: String::new(),
@@ -131,7 +132,7 @@ pub async fn in_network_file_root(
                         let has_next = reader.has_next().unwrap();
                         if !has_next {
                             let provider_map_local = provider_map.clone();
-                            submit_in_network(records, &provider_map_local, producer).await;
+                            submit_in_network(records, &provider_map_local, producer, &job_id).await;
                             println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
                             records = vec![];
                             break;
@@ -146,10 +147,11 @@ pub async fn in_network_file_root(
                             records = vec![];
                             offset = counter;
                             let start_time_packet = std::time::Instant::now();
+                            let job_id_clone = job_id.clone();
                             tokio::spawn(async move {
                                 let producer = create_producer();
                                 let message_count =
-                                    submit_in_network(chunk, &provider_map_local, &producer).await;
+                                    submit_in_network(chunk, &provider_map_local, &producer, &job_id_clone).await;
                                 println!(
                                     "Submitted {} messages in {:.2?} ({:.2} messages/sec)",
                                     message_count,
@@ -306,6 +308,7 @@ async fn submit_in_network(
     mut records: Vec<InNetworkObject>,
     provider_map: &HashMap<i64, ProtoProviderMessage>,
     producer: &ThreadedProducer<DefaultProducerContext>,
+    job_id: &String
 ) -> i64 {
     let mut count = 0;
     let start_time_packet = std::time::Instant::now();
@@ -321,6 +324,7 @@ async fn submit_in_network(
         for rate in record.negotiated_rate.as_slice() {
             let mut t = ProtoProviderNegotiationKafkaMessage::new();
             t.set_procedure(proto_procedure.clone());
+            t.set_insurance_scan_job_id(job_id.clone());
             t.set_provider_group(
                 rate.provider_references
                     .iter()

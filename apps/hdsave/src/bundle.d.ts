@@ -14,6 +14,9 @@ export namespace provider {
 
         /** ProtoProviderNegotiationKafkaMessage negotiatedPrices */
         negotiatedPrices?: (provider.IProtoNegotiatedPriceKafkaMessage[]|null);
+
+        /** ProtoProviderNegotiationKafkaMessage insuranceScanJobId */
+        insuranceScanJobId?: (string|null);
     }
 
     /** Represents a ProtoProviderNegotiationKafkaMessage. */
@@ -33,6 +36,9 @@ export namespace provider {
 
         /** ProtoProviderNegotiationKafkaMessage negotiatedPrices. */
         public negotiatedPrices: provider.IProtoNegotiatedPriceKafkaMessage[];
+
+        /** ProtoProviderNegotiationKafkaMessage insuranceScanJobId. */
+        public insuranceScanJobId: string;
 
         /**
          * Creates a new ProtoProviderNegotiationKafkaMessage instance using the specified properties.

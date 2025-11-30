@@ -85,6 +85,7 @@ model InsuranceScanJob {
   providersSaved                 BigInt?                         @default(0)
   plansSaved                     BigInt?                         @default(0)
   fileUrl                        String?                         @db.VarChar(2000)
+  insurancePlanIds               String[]
   fileExtension                  FileExtension?
   fileType                       FileType?
   fileSize                       BigInt?

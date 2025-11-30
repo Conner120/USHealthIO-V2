@@ -27,6 +27,7 @@ $root.provider = (function() {
          * @property {provider.IProtoProcedureKafkaMessage|null} [procedure] ProtoProviderNegotiationKafkaMessage procedure
          * @property {Array.<provider.IProtoProviderMessage>|null} [providerGroup] ProtoProviderNegotiationKafkaMessage providerGroup
          * @property {Array.<provider.IProtoNegotiatedPriceKafkaMessage>|null} [negotiatedPrices] ProtoProviderNegotiationKafkaMessage negotiatedPrices
+         * @property {string|null} [insuranceScanJobId] ProtoProviderNegotiationKafkaMessage insuranceScanJobId
          */
 
         /**
@@ -71,6 +72,14 @@ $root.provider = (function() {
         ProtoProviderNegotiationKafkaMessage.prototype.negotiatedPrices = $util.emptyArray;
 
         /**
+         * ProtoProviderNegotiationKafkaMessage insuranceScanJobId.
+         * @member {string} insuranceScanJobId
+         * @memberof provider.ProtoProviderNegotiationKafkaMessage
+         * @instance
+         */
+        ProtoProviderNegotiationKafkaMessage.prototype.insuranceScanJobId = "";
+
+        /**
          * Creates a new ProtoProviderNegotiationKafkaMessage instance using the specified properties.
          * @function create
          * @memberof provider.ProtoProviderNegotiationKafkaMessage
@@ -102,6 +111,8 @@ $root.provider = (function() {
             if (message.negotiatedPrices != null && message.negotiatedPrices.length)
                 for (var i = 0; i < message.negotiatedPrices.length; ++i)
                     $root.provider.ProtoNegotiatedPriceKafkaMessage.encode(message.negotiatedPrices[i], writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+            if (message.insuranceScanJobId != null && Object.hasOwnProperty.call(message, "insuranceScanJobId"))
+                writer.uint32(/* id 4, wireType 2 =*/34).string(message.insuranceScanJobId);
             return writer;
         };
 
@@ -152,6 +163,10 @@ $root.provider = (function() {
                         if (!(message.negotiatedPrices && message.negotiatedPrices.length))
                             message.negotiatedPrices = [];
                         message.negotiatedPrices.push($root.provider.ProtoNegotiatedPriceKafkaMessage.decode(reader, reader.uint32()));
+                        break;
+                    }
+                case 4: {
+                        message.insuranceScanJobId = reader.string();
                         break;
                     }
                 default:
@@ -212,6 +227,9 @@ $root.provider = (function() {
                         return "negotiatedPrices." + error;
                 }
             }
+            if (message.insuranceScanJobId != null && message.hasOwnProperty("insuranceScanJobId"))
+                if (!$util.isString(message.insuranceScanJobId))
+                    return "insuranceScanJobId: string expected";
             return null;
         };
 
@@ -252,6 +270,8 @@ $root.provider = (function() {
                     message.negotiatedPrices[i] = $root.provider.ProtoNegotiatedPriceKafkaMessage.fromObject(object.negotiatedPrices[i]);
                 }
             }
+            if (object.insuranceScanJobId != null)
+                message.insuranceScanJobId = String(object.insuranceScanJobId);
             return message;
         };
 
@@ -272,8 +292,10 @@ $root.provider = (function() {
                 object.providerGroup = [];
                 object.negotiatedPrices = [];
             }
-            if (options.defaults)
+            if (options.defaults) {
                 object.procedure = null;
+                object.insuranceScanJobId = "";
+            }
             if (message.procedure != null && message.hasOwnProperty("procedure"))
                 object.procedure = $root.provider.ProtoProcedureKafkaMessage.toObject(message.procedure, options);
             if (message.providerGroup && message.providerGroup.length) {
@@ -286,6 +308,8 @@ $root.provider = (function() {
                 for (var j = 0; j < message.negotiatedPrices.length; ++j)
                     object.negotiatedPrices[j] = $root.provider.ProtoNegotiatedPriceKafkaMessage.toObject(message.negotiatedPrices[j], options);
             }
+            if (message.insuranceScanJobId != null && message.hasOwnProperty("insuranceScanJobId"))
+                object.insuranceScanJobId = message.insuranceScanJobId;
             return object;
         };
 

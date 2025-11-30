@@ -39,7 +39,12 @@ async fn main() {
     let first_arg = Args::InNetworkRates;
     match first_arg {
         Args::InNetworkRates => {
-            in_network_file_root(&mut stream, &producer)
+            let job_id = env::args().nth(3).unwrap_or_else(|| "unknown".to_string());
+            if job_id == "unknown" {
+                println!("Job ID not provided, using default value: {}", job_id);
+                return;
+            }
+            in_network_file_root(&mut stream, &producer, &job_id)
                 .await
                 .expect("TODO: panic message");
         }
