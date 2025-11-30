@@ -26,8 +26,8 @@ async fn main() {
     // create kafka producer with arc
     let producer = create_producer();
     // get file path as argument
-    // let path = env::args().nth(1).expect("No file path provided.");
-    let path = "test.json";
+    let path = env::args().nth(1).expect("No file path provided.");
+    // let path = "test.json";
     // let file_bytes = fs::read("test.json").expect("file not found");
     // file reader without loading entire file into memory
     let reader = fs::File::open(path).expect("file not found");
@@ -35,8 +35,8 @@ async fn main() {
     let mut stream = JsonStreamReader::new(reader);
 
     // The first argument is the path to the executable
-    // let first_arg = parse_args();
-    let first_arg = Args::InNetworkRates;
+    let first_arg = parse_args();
+    // let first_arg = Args::InNetworkRates;
     match first_arg {
         Args::InNetworkRates => {
             let job_id = env::args().nth(3).unwrap_or_else(|| "unknown".to_string());
