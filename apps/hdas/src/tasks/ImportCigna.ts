@@ -143,6 +143,7 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             status: 'PENDING',
             statusTime: new Date(),
             fileUrl: fileToImport.file.url,
+            insurancePlanIds: filesToImport.find(f => f.file.url === fileToImport.file.url)?.reportingPlans || [],
             fileExtension: getFileExtensionFromUrlWithQuery(fileToImport.file.url),
             fileType: 'IN_NETWORK' as FileType,
             parentJobId: data.id,
@@ -165,7 +166,6 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
                     payload: {
                         sourceType: 'CIGNA_INDEX_API',
                         url: fileToImport.fileUrl!,
-                        // reportingPlans: filesToImport.find(f => f.file.url === fileToImport.fileUrl!)?.reportingPlans || [],
                         insuranceCompanyId: importSource?.insuranceCompanyId || null,
                         insuranceImportSourceId: importSource?.id || null,
                     }
@@ -184,6 +184,7 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             fileUrl: fileToImport.file.url,
             fileExtension: getFileExtensionFromUrlWithQuery(fileToImport.file.url),
             fileType: 'ALLOWED_AMOUNT' as FileType,
+            insurancePlanIds: filesToImport.find(f => f.file.url === fileToImport.file.url)?.reportingPlans || [],
             parentJobId: data.id,
             createdBy: data.payload.createdBy,
             updatedBy: data.payload.createdBy,
@@ -204,7 +205,6 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
                     payload: {
                         sourceType: 'CIGNA_INDEX_API',
                         url: fileToImport.fileUrl!,
-                        // reportingPlans: filesToImport.find(f => f.file.url === fileToImport.fileUrl!)?.reportingPlans || [],
                         insuranceCompanyId: importSource?.insuranceCompanyId || null,
                         insuranceImportSourceId: importSource?.id || null,
                     }
