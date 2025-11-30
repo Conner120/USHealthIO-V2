@@ -11,15 +11,7 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="test">
-      <change beforePath="$PROJECT_DIR$/../../apps/hdsave/kafka.proto" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdsave/kafka.proto" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/bundle.js" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdsave/src/bundle.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/file_root.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/file_root.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/kafka.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/kafka.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/protos/kafka.proto" beforeDir="false" afterPath="$PROJECT_DIR$/src/protos/kafka.proto" afterDir="false" />
-    </list>
+    <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="test" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -171,7 +163,7 @@
       <workItem from="1763001147680" duration="2921000" />
       <workItem from="1763686720308" duration="161000" />
       <workItem from="1764453864987" duration="8913000" />
-      <workItem from="1764467373067" duration="27834000" />
+      <workItem from="1764467373067" duration="28297000" />
     </task>
     <task id="LOCAL-00001" summary="test">
       <option name="closed" value="true" />
