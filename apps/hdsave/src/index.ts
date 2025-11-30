@@ -2,6 +2,7 @@ import { type EachMessagePayload, Kafka } from 'kafkajs';
 import { redis } from "bun";
 import { createId } from "@paralleldrive/cuid2";
 import { prisma } from '@repo/database';
+import { provider } from "./bundle"
 
 export const kafka = new Kafka({
     clientId: 'health-data-acquisition-system',
@@ -36,12 +37,14 @@ process.on('SIGINT', shutdown);
 
 export const producer = kafkaProducer.producer();
 await producer.connect();
-const consumer = kafka.consumer({ groupId: `${process.env.KAFKA_PREFIX}hdas-parser` });
+const consumer = kafka.consumer({ groupId: `${process.env.KAFKA_PREFIX}hdsave-parser` });
 await consumer.connect();
 console.log('Consumer connected');
 await consumer.subscribe({ topics: ['in-network-rates'].map(topic => `${process.env.KAFKA_PREFIX}${topic}`), fromBeginning: true }); // Subscribe to 'in_network', start from the beginning
 await consumer.run({
     eachMessage: async ({ topic, partition, message, heartbeat }: EachMessagePayload) => {
+        let t = provider.ProtoProviderNegotiationKafkaMessage.decode(message.value as Uint8Array);
+        console.log(t);
         console.log(`Received message on topic ${topic}, partition ${partition}`);
     },
 });

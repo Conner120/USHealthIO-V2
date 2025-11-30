@@ -203,6 +203,7 @@ async fn submit_in_network(mut records: Vec<InNetworkObject>,provider_map: &Hash
                 let provider = provider_map.get(x);
                 if provider.is_none() {
                     eprintln!("Provider {} not found in provider_map", x);
+                    return prov;
                 }
                 let provider = provider.unwrap();
                 prov.set_network_name(provider.network_name.clone());
