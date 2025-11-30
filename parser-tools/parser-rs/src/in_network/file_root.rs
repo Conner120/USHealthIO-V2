@@ -6,8 +6,9 @@ use std::time::Duration;
 use protobuf::Message;
 use rdkafka::producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer};
 use serde::Serialize;
-
+use struson::json_path;
 use struson::reader::{JsonReader, JsonStreamReader};
+use struson::reader::json_path::JsonPath;
 use crate::create_producer;
 use crate::in_network::kafka_messages::{NegotiatedPriceKafkaMessage, ProcedureKafkaMessage, ProviderNegotiationKafkaMessage};
 use crate::in_network::types::in_network::{in_network_object, InNetworkObject};
@@ -51,69 +52,87 @@ pub async fn in_network_file_root(reader: &mut JsonStreamReader<File>, producer:
     reader.begin_object();
     let mut counter: usize = 0;
     let mut start_time =  std::time::Instant::now();
+    let mut need_to_process_in_network_loop_back = false;
     loop {
+        if need_to_process_in_network_loop_back && !data.provider_references.is_empty() {
+            println!("Looping back to process in_network");
+            need_to_process_in_network_loop_back = false;
+            reader.seek_back(&json_path!["in_network"]).expect("TODO: panic message");
+        }
         let has_next = reader.has_next().unwrap();
         if !has_next {
-            break;
+            if need_to_process_in_network_loop_back {
+                println!("Looping back to process in_network");
+                reader.seek_back(&json_path!["in_network"]).expect("TODO: panic message");
+            }else {
+                break;
+            }
         }
         let name = reader.next_name().unwrap();
         match name {
             "in_network" => {
-                if data.provider_references.is_empty() {
-                    eprintln!("Warning: provider_references is empty before processing in_network");
-                }
-                let mut provider_map: HashMap<i64, ProtoProviderMessage> = HashMap::new();
-                println!("Processing in_network");
-                counter = 0;
-                let mut offset = 0;
-                start_time = std::time::Instant::now();
-                for provider_reference in data.provider_references.iter() {
-                    let mut proto_provider_message = ProtoProviderMessage::new();
-                    for network_name in provider_reference.network_name.iter() {
-                        proto_provider_message.network_name.push(network_name.to_string());
-                    }
-                    for provider_group in provider_reference.provider_groups.iter() {
-                        let mut proto_provider_object = ProtoProviderObject::new();
-                        proto_provider_object.set_npi(provider_group.npi.iter().map(|x| x.to_string()).collect());
-                        let mut proto_tax_identifier = ProtoTaxIdentifier::new();
-                        if provider_group.tins.business_name.is_some() {
-                        proto_tax_identifier.set_business_name(provider_group.tins.business_name.clone().unwrap());
+                if data.provider_references.is_empty() && !need_to_process_in_network_loop_back {
+                    println!("Warning: provider_references is empty before processing in_network");
+                    need_to_process_in_network_loop_back = true;
+                    reader.skip_value().unwrap();
+                } else {
+                    need_to_process_in_network_loop_back = false;
+                    let mut provider_map: HashMap<i64, ProtoProviderMessage> = HashMap::new();
+                    println!("Processing in_network");
+                    counter = 0;
+                    let mut offset = 0;
+                    start_time = std::time::Instant::now();
+                    for provider_reference in data.provider_references.iter() {
+                        let mut proto_provider_message = ProtoProviderMessage::new();
+                        for network_name in provider_reference.network_name.iter() {
+                            proto_provider_message.network_name.push(network_name.to_string());
                         }
-                        proto_tax_identifier.set_field_type(provider_group.tins.r#type.to_string());
-                        proto_tax_identifier.set_value(provider_group.tins.value.clone());
-                        proto_provider_object.set_tin(proto_tax_identifier);
-                        proto_provider_message.provider_groups.push(proto_provider_object);
+                        for provider_group in provider_reference.provider_groups.iter() {
+                            let mut proto_provider_object = ProtoProviderObject::new();
+                            proto_provider_object.set_npi(provider_group.npi.iter().map(|x| x.to_string()).collect());
+                            let mut proto_tax_identifier = ProtoTaxIdentifier::new();
+                            if provider_group.tins.business_name.is_some() {
+                                proto_tax_identifier.set_business_name(provider_group.tins.business_name.clone().unwrap());
+                            }
+                            proto_tax_identifier.set_field_type(provider_group.tins.r#type.to_string());
+                            proto_tax_identifier.set_value(provider_group.tins.value.clone());
+                            proto_provider_object.set_tin(proto_tax_identifier);
+                            proto_provider_message.provider_groups.push(proto_provider_object);
+                        }
+                        provider_map.insert(provider_reference.provider_group_id, proto_provider_message);
                     }
-                    provider_map.insert(provider_reference.provider_group_id, proto_provider_message);
-                }
-                reader.begin_array().unwrap();
-                let mut records = vec![];
-                loop {
-                    let provider_map_local = provider_map.clone();
-                    let has_next = reader.has_next().unwrap();
-                    if !has_next {
-                        submit_in_network(records, &provider_map_local, producer).await;
-                        println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
-                        records = vec![];
-                        break;
-                    }
-                    let in_network = in_network_object(reader).expect("TODO: panic message");
-                    counter += in_network.negotiated_rate.len();
-                    records.push(in_network);
-                    if (counter-offset) > 40000 {
-                        let chunk = std::mem::take(&mut records);
-                        records = vec![];
-                        offset = counter;
-                        let start_time_packet = std::time::Instant::now();
-                        tokio::spawn(async move {
-                            let producer = create_producer();
-                            let message_count = submit_in_network(chunk, &provider_map_local, &producer).await;
-                            println!("Submitted {} messages in {:.2?} ({:.2} messages/sec)", message_count, start_time_packet.elapsed(), message_count as f64 / start_time_packet.elapsed().as_secs_f64());
+                    data.provider_references = vec![];
+                    reader.begin_array().unwrap();
+                    let mut records = vec![];
+                    println!("Processing in_network objects...");
+                    loop {
+                        let has_next = reader.has_next().unwrap();
+                        if !has_next {
+                        let provider_map_local = provider_map.clone();
+                            submit_in_network(records, &provider_map_local, producer).await;
                             println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
-                        });
+                            records = vec![];
+                            break;
+                        }
+                        let in_network = in_network_object(reader).expect("TODO: panic message");
+                        counter += in_network.negotiated_rate.len();
+                        records.push(in_network);
+                        if (counter - offset) > 50000 {
+                            let provider_map_local = provider_map.clone();
+                            let chunk = std::mem::take(&mut records);
+                            records = vec![];
+                            offset = counter;
+                            let start_time_packet = std::time::Instant::now();
+                            tokio::spawn(async move {
+                                let producer = create_producer();
+                                let message_count = submit_in_network(chunk, &provider_map_local, &producer).await;
+                                println!("Submitted {} messages in {:.2?} ({:.2} messages/sec)", message_count, start_time_packet.elapsed(), message_count as f64 / start_time_packet.elapsed().as_secs_f64());
+                                println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
+                            });
+                        }
                     }
+                    reader.end_array();
                 }
-                reader.end_array();
             }
             "reporting_entity_name" => {
                 let value = reader.next_string().unwrap();
@@ -151,21 +170,68 @@ pub async fn in_network_file_root(reader: &mut JsonStreamReader<File>, producer:
                 counter = 0;
                 start_time = std::time::Instant::now();
                 reader.begin_array().unwrap();
+                let mut provider_refs = vec![];
                 loop {
                     let has_next = reader.has_next().unwrap();
                     if !has_next {
                         break;
                     }
-                    let item =  crate::in_network::types::provider_references::provider_reference_object(reader)?;
+                    let item =  crate::in_network::types::provider_references::provider_reference_object(reader).await?;
                     counter += 1;
-                    data.provider_references.push(item);
+                    provider_refs.push(item);
                     if counter % 20000 == 0 {
                         let elapsed = start_time.elapsed();
-                        data.provider_references = vec![];
-                        println!("Processed {} provider_reference objects in {:.2?} ({:.2} objects/sec)", counter, elapsed, counter as f64 / elapsed.as_secs_f64());
+                        println!("Read {} provider_reference objects in {:.2?} ({:.2} objects/sec)", counter, elapsed, counter as f64 / elapsed.as_secs_f64());
                     }
                 }
                 reader.end_array();
+                
+                // Process provider references in parallel chunks of 500, including fetching location data
+                println!("Processing {} provider_references in parallel chunks of 500 (including location fetches)...", provider_refs.len());
+                let fetch_start_time = std::time::Instant::now();
+                let chunk_size = 500;
+                let mut processed_refs = Vec::with_capacity(provider_refs.len());
+                
+                for (chunk_idx, chunk) in provider_refs.chunks(chunk_size).enumerate() {
+                    let chunk_start_time = std::time::Instant::now();
+                    let mut handles = vec![];
+                    
+                    // Spawn tasks for this chunk
+                    for provider_ref in chunk.iter().cloned() {
+                        let handle = tokio::spawn(async move {
+                            crate::in_network::types::provider_references::fetch_and_merge_location_data(provider_ref).await
+                        });
+                        handles.push(handle);
+                    }
+                    
+                    // Wait for all tasks in this chunk to complete
+                    for handle in handles {
+                        match handle.await {
+                            Ok(Ok(provider_ref)) => {
+                                processed_refs.push(provider_ref);
+                            }
+                            Ok(Err(e)) => {
+                                eprintln!("Error processing provider reference: {}", e.message);
+                                return Err(e);
+                            }
+                            Err(e) => {
+                                eprintln!("Error in parallel task: {:?}", e);
+                                return Err(InNetworkFileError {
+                                    message: format!("Parallel task error: {:?}", e),
+                                });
+                            }
+                        }
+                    }
+                    
+                    let chunk_elapsed = chunk_start_time.elapsed();
+                    let chunk_num = chunk_idx + 1;
+                    let total_chunks = (provider_refs.len() + chunk_size - 1) / chunk_size;
+                    println!("Completed chunk {}/{} ({} items) in {:.2?}", chunk_num, total_chunks, chunk.len(), chunk_elapsed);
+                }
+                
+                data.provider_references = processed_refs;
+                let fetch_elapsed = fetch_start_time.elapsed();
+                println!("Processed {} provider_reference objects in parallel chunks in {:.2?} ({:.2} objects/sec)", counter, fetch_elapsed, counter as f64 / fetch_elapsed.as_secs_f64());
             }
             "version" => {
                 let value = reader.next_string().unwrap();
@@ -239,10 +305,10 @@ async fn submit_in_network(mut records: Vec<InNetworkObject>,provider_map: &Hash
                 neg
             }).collect());
             let bytes = t.write_to_bytes().unwrap();
-            let mut topic = "in-network-file".to_string();
+            let mut topic = "in-network-rates".to_string();
             if env::var("KAFKA_TOPIC").is_ok() {
                 let topic_env = env::var("KAFKA_TOPIC").unwrap();
-                let t = format!("{topic_env}-in-network-file");
+                let t = format!("{topic_env}-in-network-rates");
                 topic = t;
             }
             let base_record = BaseRecord::to(&topic

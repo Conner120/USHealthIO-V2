@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package provider;
+
+// Top-level message
+message ProtoProviderNegotiationKafkaMessage {
+  ProtoProcedureKafkaMessage procedure = 1;
+  repeated ProtoProviderMessage provider_group = 2;
+  repeated ProtoNegotiatedPriceKafkaMessage negotiated_prices = 3;
+}
+// Nested message for negotiated prices
+message ProtoProviderMessage {
+ repeated string network_name = 1;
+ repeated ProtoProviderObject provider_groups = 2;
+}
+
+message ProtoProviderObject {
+    repeated string npi = 1;
+    ProtoTaxIdentifier tin = 2;
+}
+
+message ProtoTaxIdentifier {
+    string type = 1;
+    string value = 2;
+    string business_name = 3;
+}
+// Nested message for negotiated prices
+message ProtoNegotiatedPriceKafkaMessage {
+  optional string negotiated_type = 1;
+  optional double negotiated_rate = 2;
+  optional string expiration_date = 3;
+  repeated string service_code = 4;
+  optional string billing_class = 5;
+  optional string setting = 6;
+  repeated string billing_code_modifier = 7;
+  repeated string additional_information = 8;
+}
+
+// Nested message for procedure details
+message ProtoProcedureKafkaMessage {
+  string negotiation_arrangement = 1;
+  string name = 2;
+  string billing_code_type = 3;
+  string billing_code_type_version = 4;
+  string billing_code = 5;
+  string description = 6;
+}

@@ -43,3 +43,34 @@ pub fn tax_identifier_object(reader: &mut JsonStreamReader<File>) -> Result<TaxI
     reader.end_object().expect("TODO: panic message");
     Ok(data)
 }
+
+pub fn tax_identifier_object_raw(reader: &mut JsonStreamReader<&[u8]>) -> Result<TaxIdentifierObject, InNetworkFileError> {
+    let mut data = TaxIdentifierObject {
+        r#type: "".to_string(),
+        value: "".to_string(),
+        business_name: None,
+    };
+    reader.begin_object().expect("TODO: panic message");
+    loop {
+        if !reader.has_next().unwrap() {
+            break;
+        }
+        let member_name = reader.next_name().unwrap();
+        match member_name {
+            "type" =>{
+                data.r#type = reader.next_string().unwrap();
+            }
+            "value" =>{
+                data.value = reader.next_string().unwrap();
+            }
+            "business_name" =>{
+                data.business_name = Some(reader.next_string().unwrap());
+            }
+            _ => {
+                reader.skip_value().unwrap();
+            }
+        }
+    }
+    reader.end_object().expect("TODO: panic message");
+    Ok(data)
+}

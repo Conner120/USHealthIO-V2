@@ -25,8 +25,8 @@ async fn main() {
     // create kafka producer with arc
     let producer = create_producer();
     // get file path as argument
-    let args: Vec<String> = env::args().collect();
-    let path = args.get(1).expect("No path provided");
+    // let path = env::args().nth(1).expect("No file path provided.");
+    let path = "test.json";
     // let file_bytes = fs::read("test.json").expect("file not found");
     // file reader without loading entire file into memory
     let reader = fs::File::open(path).expect("file not found");
@@ -34,7 +34,8 @@ async fn main() {
     let mut stream = JsonStreamReader::new(reader);
 
     // The first argument is the path to the executable
-    let first_arg = parse_args();
+    // let first_arg = parse_args();
+    let first_arg = Args::InNetworkRates;
     match first_arg {
         Args::InNetworkRates => {
             in_network_file_root(&mut stream,&producer).await.expect("TODO: panic message");
@@ -46,14 +47,10 @@ async fn main() {
 }
 
 fn parse_args() -> Args {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        panic!("No arguments provided.");
-    }
-    match args[2].as_str() {
+    match env::args().nth(2).unwrap().as_str() {
         "in_network_rates" => Args::InNetworkRates,
         "in_network_providers" => Args::InNetworkProviders,
-        _ => panic!("Invalid argument: {}", args[1]),
+        _ => panic!("Invalid argument: {}", env::args().nth(2).unwrap()),
     }
 }
 
