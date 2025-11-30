@@ -1,10 +1,12 @@
-use std::fs::File;
-use serde::Serialize;
-use struson::reader::{JsonReader, JsonStreamReader};
-use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
 use crate::in_network::file_root::InNetworkFileError;
 use crate::in_network::types::in_network::InNetworkObject;
-use crate::in_network::types::negotiated_price_object::{negotiated_price_object, NegotiatedPriceObject};
+use crate::in_network::types::negotiated_price_object::{
+    negotiated_price_object, NegotiatedPriceObject,
+};
+use serde::Serialize;
+use std::fs::File;
+use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
+use struson::reader::{JsonReader, JsonStreamReader};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct TaxIdentifierObject {
@@ -13,7 +15,9 @@ pub struct TaxIdentifierObject {
     pub business_name: Option<String>,
 }
 
-pub fn tax_identifier_object(reader: &mut JsonStreamReader<File>) -> Result<TaxIdentifierObject, InNetworkFileError> {
+pub fn tax_identifier_object(
+    reader: &mut JsonStreamReader<File>,
+) -> Result<TaxIdentifierObject, InNetworkFileError> {
     let mut data = TaxIdentifierObject {
         r#type: "".to_string(),
         value: "".to_string(),
@@ -26,13 +30,13 @@ pub fn tax_identifier_object(reader: &mut JsonStreamReader<File>) -> Result<TaxI
         }
         let member_name = reader.next_name().unwrap();
         match member_name {
-            "type" =>{
+            "type" => {
                 data.r#type = reader.next_string().unwrap();
             }
-            "value" =>{
+            "value" => {
                 data.value = reader.next_string().unwrap();
             }
-            "business_name" =>{
+            "business_name" => {
                 data.business_name = Some(reader.next_string().unwrap());
             }
             _ => {
@@ -44,7 +48,9 @@ pub fn tax_identifier_object(reader: &mut JsonStreamReader<File>) -> Result<TaxI
     Ok(data)
 }
 
-pub fn tax_identifier_object_raw(reader: &mut JsonStreamReader<&[u8]>) -> Result<TaxIdentifierObject, InNetworkFileError> {
+pub fn tax_identifier_object_raw(
+    reader: &mut JsonStreamReader<&[u8]>,
+) -> Result<TaxIdentifierObject, InNetworkFileError> {
     let mut data = TaxIdentifierObject {
         r#type: "".to_string(),
         value: "".to_string(),
@@ -57,13 +63,13 @@ pub fn tax_identifier_object_raw(reader: &mut JsonStreamReader<&[u8]>) -> Result
         }
         let member_name = reader.next_name().unwrap();
         match member_name {
-            "type" =>{
+            "type" => {
                 data.r#type = reader.next_string().unwrap();
             }
-            "value" =>{
+            "value" => {
                 data.value = reader.next_string().unwrap();
             }
-            "business_name" =>{
+            "business_name" => {
                 data.business_name = Some(reader.next_string().unwrap());
             }
             _ => {

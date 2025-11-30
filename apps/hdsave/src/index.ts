@@ -1,4 +1,4 @@
-import { type EachMessagePayload, Kafka } from 'kafkajs';
+import { type EachMessagePayload, Kafka, CompressionTypes, CompressionCodecs } from 'kafkajs';
 import { redis } from "bun";
 import { createId } from "@paralleldrive/cuid2";
 import { prisma } from '@repo/database';

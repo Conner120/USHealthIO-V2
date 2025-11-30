@@ -1,10 +1,12 @@
-use std::fs::File;
-use serde::Serialize;
-use struson::reader::{JsonReader, JsonStreamReader};
-use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
 use crate::in_network::file_root::InNetworkFileError;
 use crate::in_network::types::in_network::InNetworkObject;
-use crate::in_network::types::negotiated_price_object::{negotiated_price_object, NegotiatedPriceObject};
+use crate::in_network::types::negotiated_price_object::{
+    negotiated_price_object, NegotiatedPriceObject,
+};
+use serde::Serialize;
+use std::fs::File;
+use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
+use struson::reader::{JsonReader, JsonStreamReader};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BundledCodeObject {
@@ -14,7 +16,9 @@ pub struct BundledCodeObject {
     description: String,
 }
 
-pub fn bundled_code_object(reader: &mut JsonStreamReader<File>) -> Result<BundledCodeObject, InNetworkFileError> {
+pub fn bundled_code_object(
+    reader: &mut JsonStreamReader<File>,
+) -> Result<BundledCodeObject, InNetworkFileError> {
     let mut data = BundledCodeObject {
         billing_code_type: String::new(),
         billing_code_type_version: String::new(),

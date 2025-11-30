@@ -1,9 +1,11 @@
-use std::fs::File;
-use serde::Serialize;
-use reqwest::header::{HeaderValue, ACCEPT_ENCODING, USER_AGENT};
-use struson::reader::{JsonReader, JsonStreamReader};
 use crate::in_network::file_root::InNetworkFileError;
-use crate::in_network::types::providers_object::{providers_object, providers_object_raw, ProvidersObject};
+use crate::in_network::types::providers_object::{
+    providers_object, providers_object_raw, ProvidersObject,
+};
+use reqwest::header::{HeaderValue, ACCEPT_ENCODING, USER_AGENT};
+use serde::Serialize;
+use std::fs::File;
+use struson::reader::{JsonReader, JsonStreamReader};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProviderReferenceObject {
@@ -13,7 +15,9 @@ pub struct ProviderReferenceObject {
     pub location: Option<String>,
 }
 
-pub async fn provider_reference_object(reader: &mut JsonStreamReader<File>) -> Result<ProviderReferenceObject, InNetworkFileError> {
+pub async fn provider_reference_object(
+    reader: &mut JsonStreamReader<File>,
+) -> Result<ProviderReferenceObject, InNetworkFileError> {
     let mut data = ProviderReferenceObject {
         provider_group_id: 0,
         network_name: vec![],
@@ -48,7 +52,7 @@ pub async fn provider_reference_object(reader: &mut JsonStreamReader<File>) -> R
                     if !has_next {
                         break;
                     }
-                    let provider_object= providers_object(reader).unwrap();
+                    let provider_object = providers_object(reader).unwrap();
                     data.provider_groups.push(provider_object);
                 }
                 reader.end_array();
@@ -66,8 +70,10 @@ pub async fn provider_reference_object(reader: &mut JsonStreamReader<File>) -> R
     Ok(data)
 }
 
-/// Fetches provider reference data from a location URL and merges it into the existing provider reference
-pub async fn fetch_and_merge_location_data(mut provider_ref: ProviderReferenceObject) -> Result<ProviderReferenceObject, InNetworkFileError> {
+/// Fetches provider reference data from a location URL and merges it into the existing provider reference add a fetch retry 3 times
+pub async fn fetch_and_merge_location_data(
+    mut provider_ref: ProviderReferenceObject,
+) -> Result<ProviderReferenceObject, InNetworkFileError> {
     if let Some(location) = &provider_ref.location {
         let client = reqwest::Client::builder()
             .gzip(true)
@@ -76,46 +82,64 @@ pub async fn fetch_and_merge_location_data(mut provider_ref: ProviderReferenceOb
             .map_err(|e| InNetworkFileError {
                 message: format!("Failed to create HTTP client: {}", e),
             })?;
-        
-        let response = client
-            .get(location)
-            .header(USER_AGENT, HeaderValue::from_static("parser-rs/1.0"))
-            .header(ACCEPT_ENCODING, HeaderValue::from_static("gzip, br"))
-            .send()
-            .await
-            .map_err(|e| InNetworkFileError {
-                message: format!("Failed to fetch location {}: {}", location, e),
-            })?;
-        
-        if !response.status().is_success() {
-            return Err(InNetworkFileError {
-                message: format!("Failed to fetch location {}: HTTP {}", location, response.status()),
-            });
-        }
-        
-        let bytes = response.bytes().await.map_err(|e| InNetworkFileError {
-            message: format!("Failed to read response body from {}: {}", location, e),
-        })?;
-        
-        // Convert to Vec<u8> to get an owned slice
-        let bytes_vec = bytes.to_vec();
-        let mut reader = JsonStreamReader::new(bytes_vec.as_slice());
-        let fetched_data = provider_reference_object_from_bytes(&mut reader).await?;
-        
-        // Merge the fetched data: combine provider_groups and network_name
-        provider_ref.provider_groups.extend(fetched_data.provider_groups);
-        // Merge network names, avoiding duplicates
-        for network_name in fetched_data.network_name {
-            if !provider_ref.network_name.contains(&network_name) {
-                provider_ref.network_name.push(network_name);
+        let mut failed_attempts = 0;
+        loop {
+            let response = client
+                .get(location)
+                .header(USER_AGENT, HeaderValue::from_static("parser-rs/1.0"))
+                .header(ACCEPT_ENCODING, HeaderValue::from_static("gzip, br"))
+                .send()
+                .await
+                .map_err(|e| InNetworkFileError {
+                    message: format!("Failed to fetch location {}: {}", location, e),
+                })?;
+
+            if !response.status().is_success() {
+                if failed_attempts > 0 {
+                    failed_attempts += 1;
+                    // sleep for 1 second before retrying
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    continue; // Retry fetching
+                } else {
+                    return Err(InNetworkFileError {
+                        message: format!(
+                            "Failed to fetch location {}: HTTP {}",
+                            location,
+                            response.status()
+                        ),
+                    });
+                }
             }
+
+            let bytes = response.bytes().await.map_err(|e| InNetworkFileError {
+                message: format!("Failed to read response body from {}: {}", location, e),
+            })?;
+
+            // Convert to Vec<u8> to get an owned slice
+            let bytes_vec = bytes.to_vec();
+            let mut reader = JsonStreamReader::new(bytes_vec.as_slice());
+            let fetched_data = provider_reference_object_from_bytes(&mut reader).await?;
+
+            // Merge the fetched data: combine provider_groups and network_name
+            provider_ref
+                .provider_groups
+                .extend(fetched_data.provider_groups);
+            // Merge network names, avoiding duplicates
+            for network_name in fetched_data.network_name {
+                if !provider_ref.network_name.contains(&network_name) {
+                    provider_ref.network_name.push(network_name);
+                }
+            }
+            break;
         }
     }
     Ok(provider_ref)
 }
 
 /// Parses a ProviderReferenceObject from a byte stream (used for location URLs)
-async fn provider_reference_object_from_bytes(reader: &mut JsonStreamReader<&[u8]>) -> Result<ProviderReferenceObject, InNetworkFileError> {
+async fn provider_reference_object_from_bytes(
+    reader: &mut JsonStreamReader<&[u8]>,
+) -> Result<ProviderReferenceObject, InNetworkFileError> {
     let mut data = ProviderReferenceObject {
         provider_group_id: 0,
         network_name: vec![],

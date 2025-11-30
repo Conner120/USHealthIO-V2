@@ -1,16 +1,17 @@
 mod in_network;
 mod kafka;
-use std::{env, fs};
-use struson::reader::{JsonStreamReader};
 use crate::in_network::file_root::in_network_file_root;
-use rdkafka::ClientConfig;
 use rdkafka::producer::{DefaultProducerContext, FutureProducer, Producer, ThreadedProducer};
+use rdkafka::ClientConfig;
+use std::{env, fs};
+use struson::reader::JsonStreamReader;
 
 pub fn create_producer() -> ThreadedProducer<DefaultProducerContext> {
     let producer: ThreadedProducer<DefaultProducerContext> = ClientConfig::new()
-        .set("bootstrap.servers", "192.168.20.60:30737")
+        .set("bootstrap.servers", "192.168.20.60:31959")
         .set("batch.size", "16380400")
         .set("linger.ms", "10")
+        .set("message.max.bytes", "5242880")
         .set("queue.buffering.max.messages", "1000000")
         .create()
         .expect("Producer creation error");
@@ -38,8 +39,10 @@ async fn main() {
     let first_arg = Args::InNetworkRates;
     match first_arg {
         Args::InNetworkRates => {
-            in_network_file_root(&mut stream,&producer).await.expect("TODO: panic message");
-        },
+            in_network_file_root(&mut stream, &producer)
+                .await
+                .expect("TODO: panic message");
+        }
         _ => {
             return;
         }

@@ -1,13 +1,13 @@
-use std::fs::File;
-use struson::reader::{JsonReader, JsonStreamReader};
-use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
-use serde::Serialize;
 use crate::in_network::file_root::InNetworkFileError;
 use crate::in_network::types::bundled_code::{bundled_code_object, BundledCodeObject};
 use crate::in_network::types::negotiated_rates::{negotiated_rates, NegotiatedRateObject};
+use serde::Serialize;
+use std::fs::File;
+use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
+use struson::reader::{JsonReader, JsonStreamReader};
 
-#[derive(Debug, Clone, Serialize )]
-pub struct  InNetworkObject {
+#[derive(Debug, Clone, Serialize)]
+pub struct InNetworkObject {
     pub negotiation_arrangement: String,
     pub name: String,
     pub billing_code_type: String,
@@ -19,7 +19,9 @@ pub struct  InNetworkObject {
     pub bundled_codes: Vec<BundledCodeObject>,
     pub covered_services: Vec<BundledCodeObject>,
 }
-pub fn in_network_object(reader: &mut JsonStreamReader<File>) -> Result<InNetworkObject, InNetworkFileError> {
+pub fn in_network_object(
+    reader: &mut JsonStreamReader<File>,
+) -> Result<InNetworkObject, InNetworkFileError> {
     let mut data = InNetworkObject {
         negotiation_arrangement: String::new(),
         name: String::new(),
@@ -79,7 +81,7 @@ pub fn in_network_object(reader: &mut JsonStreamReader<File>) -> Result<InNetwor
                     if !has_next {
                         break;
                     }
-                    let item =  bundled_code_object(reader)?;
+                    let item = bundled_code_object(reader)?;
                     data.bundled_codes.push(item)
                 }
                 reader.end_array();
@@ -103,5 +105,4 @@ pub fn in_network_object(reader: &mut JsonStreamReader<File>) -> Result<InNetwor
     }
     reader.end_object();
     Ok(data)
-
 }

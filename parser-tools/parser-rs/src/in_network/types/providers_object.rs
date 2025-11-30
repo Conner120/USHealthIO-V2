@@ -1,11 +1,15 @@
-use std::fs::File;
-use serde::Serialize;
-use struson::reader::{JsonReader, JsonStreamReader};
-use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
 use crate::in_network::file_root::InNetworkFileError;
 use crate::in_network::types::in_network::InNetworkObject;
-use crate::in_network::types::negotiated_price_object::{negotiated_price_object, NegotiatedPriceObject};
-use crate::in_network::types::tax_identifier::{tax_identifier_object, tax_identifier_object_raw, TaxIdentifierObject};
+use crate::in_network::types::negotiated_price_object::{
+    negotiated_price_object, NegotiatedPriceObject,
+};
+use crate::in_network::types::tax_identifier::{
+    tax_identifier_object, tax_identifier_object_raw, TaxIdentifierObject,
+};
+use serde::Serialize;
+use std::fs::File;
+use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
+use struson::reader::{JsonReader, JsonStreamReader};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProvidersObject {
@@ -13,7 +17,9 @@ pub struct ProvidersObject {
     pub tins: TaxIdentifierObject,
 }
 
-pub fn providers_object(reader: &mut JsonStreamReader<File>) -> Result<ProvidersObject, InNetworkFileError> {
+pub fn providers_object(
+    reader: &mut JsonStreamReader<File>,
+) -> Result<ProvidersObject, InNetworkFileError> {
     let mut data = ProvidersObject {
         npi: Vec::new(),
         tins: TaxIdentifierObject {
@@ -53,7 +59,9 @@ pub fn providers_object(reader: &mut JsonStreamReader<File>) -> Result<Providers
     Ok(data)
 }
 
-pub fn providers_object_raw(reader: &mut JsonStreamReader<&[u8]>) -> Result<ProvidersObject, InNetworkFileError> {
+pub fn providers_object_raw(
+    reader: &mut JsonStreamReader<&[u8]>,
+) -> Result<ProvidersObject, InNetworkFileError> {
     let mut data = ProvidersObject {
         npi: Vec::new(),
         tins: TaxIdentifierObject {

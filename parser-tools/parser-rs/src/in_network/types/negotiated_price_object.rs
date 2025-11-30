@@ -1,8 +1,7 @@
-use serde::Serialize;
-use struson::reader::{JsonReader, JsonStreamReader};
-use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
 use crate::in_network::file_root::InNetworkFileError;
-
+use serde::Serialize;
+use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
+use struson::reader::{JsonReader, JsonStreamReader};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct NegotiatedPriceObject {
@@ -16,7 +15,9 @@ pub struct NegotiatedPriceObject {
     pub additional_information: Vec<String>,
 }
 
-pub fn negotiated_price_object(reader: &mut JsonStreamReader<std::fs::File>) -> Result<NegotiatedPriceObject, InNetworkFileError> {
+pub fn negotiated_price_object(
+    reader: &mut JsonStreamReader<std::fs::File>,
+) -> Result<NegotiatedPriceObject, InNetworkFileError> {
     let mut data = NegotiatedPriceObject {
         negotiated_type: None,
         negotiated_rate: None,
