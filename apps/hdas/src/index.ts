@@ -37,13 +37,14 @@ process.on('SIGINT', shutdown);
 
 export const producer = kafkaProducer.producer();
 await producer.connect();
-const consumer = kafka.consumer({ groupId: `${process.env.KAFKA_PREFIX}hdas-parser2`, sessionTimeout: 30000, heartbeatInterval: 3000 });
+const consumer = kafka.consumer({ groupId: `${process.env.KAFKA_PREFIX}hdas-parser2`, sessionTimeout: 600000, heartbeatInterval: 10000, maxInFlightRequests: 1 });
 await consumer.connect();
 console.log('Consumer connected');
 await consumer.subscribe({ topics: ['insurance-source-scan-jobs', 'in-network-file', 'allowed-amount-file'].map(topic => `${process.env.KAFKA_PREFIX}${topic}`), fromBeginning: true }); // Subscribe to 'in_network', start from the beginning
 await consumer.run({
     eachMessage: async ({ topic, partition, message, heartbeat }: EachMessagePayload) => {
         try {
+            let t = setInterval(heartbeat, 3000); // Send heartbeat every 3 seconds
             let d = Date.now();
             let job = message.value ? JSON.parse(message.value.toString()) as TaskPayload : null;
             await prisma.insuranceScanJob.update({
@@ -75,6 +76,7 @@ await consumer.run({
             });
             await redis.hset('NODES', processId, "IDLE");
             console.log(`Processed message in ${Date.now() - d}ms`);
+            clearInterval(t);
         } catch (error) {
             console.error('Error processing message:', error);
         }
