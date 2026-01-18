@@ -235,15 +235,22 @@ pub async fn in_network_file_root(
                 .unwrap_or(500);
                 println!("Processing {} provider_references in parallel chunks of {} (including location fetches)...", provider_refs.len(), chunk_size);
                 let mut processed_refs = Vec::with_capacity(provider_refs.len());
-
+                let client = reqwest::Client::builder()
+                    .gzip(true)
+                    .brotli(true)
+                    .build()
+                    .map_err(|e| InNetworkFileError {
+                        message: format!("Failed to create HTTP client: {}", e),
+                    })?;
                 for (chunk_idx, chunk) in provider_refs.chunks(chunk_size).enumerate() {
                     let chunk_start_time = std::time::Instant::now();
                     let mut handles = vec![];
 
                     // Spawn tasks for this chunk
                     for provider_ref in chunk.iter().cloned() {
+                        let client = client.clone();
                         let handle = tokio::spawn(async move {
-                            crate::in_network::types::provider_references::fetch_and_merge_location_data(provider_ref).await
+                            crate::in_network::types::provider_references::fetch_and_merge_location_data(provider_ref, &client).await
                         });
                         handles.push(handle);
                     }

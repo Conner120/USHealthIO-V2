@@ -5,6 +5,7 @@ use crate::in_network::types::providers_object::{
 use reqwest::header::{HeaderValue, ACCEPT_ENCODING, USER_AGENT};
 use serde::Serialize;
 use std::fs::File;
+use reqwest::Client;
 use struson::reader::{JsonReader, JsonStreamReader};
 
 #[derive(Debug, Clone, Serialize)]
@@ -69,16 +70,11 @@ pub async fn provider_reference_object(
     reader.end_object().expect("TODO: panic message");
     Ok(data)
 }
-let client = reqwest::Client::builder()
-    .gzip(true)
-    .brotli(true)
-    .build()
-    .map_err(|e| InNetworkFileError {
-        message: format!("Failed to create HTTP client: {}", e),
-    })?;
+
 /// Fetches provider reference data from a location URL and merges it into the existing provider reference add a fetch retry 3 times
 pub async fn fetch_and_merge_location_data(
     mut provider_ref: ProviderReferenceObject,
+    client: &Client
 ) -> Result<ProviderReferenceObject, InNetworkFileError> {
     if let Some(location) = &provider_ref.location {
         let mut failed_attempts = 0;
