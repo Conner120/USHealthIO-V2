@@ -49,36 +49,6 @@ pub async fn in_network_file_root(
     producer: &ThreadedProducer<DefaultProducerContext>,
     job_id: &String,
 ) -> Result<InNetworkFileRoot, InNetworkFileError> {
-    let rabbitmq_host = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "localhost".to_string());
-    let rabbitmq_username =
-        std::env::var("RABBITMQ_USER").unwrap_or_else(|_| "guest".to_string());
-    let rabbitmq_password =
-        std::env::var("RABBITMQ_PASSWORD").unwrap_or_else(|_| "guest".to_string());
-    let environment = Environment::builder()
-        .host(rabbitmq_host.as_str())
-        .port(5552)
-        .username(rabbitmq_username.as_str())
-        .password(rabbitmq_password.as_str())
-        .build()
-        .await
-        .unwrap();
-
-    println!("creating batch_send stream");
-    environment
-        .stream_creator()
-        .max_length(ByteCapacity::GB(2))
-        .create_super_stream("in_network_rates", 5, None)
-        .await;
-
-    let mut producer = environment
-        .super_stream_producer(RoutingStrategy::HashRoutingStrategy(
-            HashRoutingMurmurStrategy {
-                routing_extractor: &hash_strategy_value_extractor,
-            },
-        ))
-        .build("in_network_rates")
-        .await
-        .expect("Failed to create super stream producer");
     let mut data = InNetworkFileRoot {
         reporting_entity_name: String::new(),
         reporting_entity_type: "".to_string(),
@@ -111,6 +81,8 @@ pub async fn in_network_file_root(
                 reader
                     .seek_back(&json_path!["in_network"])
                     .expect("TODO: panic message");
+                // roll reader back to in_network start
+                reader.seek_back(&json_path!["in_network"]).expect("TODO: panic message");
             } else {
                 break;
             }
@@ -167,14 +139,6 @@ pub async fn in_network_file_root(
                         if !has_next {
                             println!("No more in_network objects to process publishing remaining {} records...", records.len());
                             let provider_map_local = provider_map.clone();
-                            let mut producer = producer.clone();
-                            submit_in_network_rabbitmq(
-                                records,
-                                &provider_map_local,
-                                &mut producer,
-                                &job_id,
-                            )
-                            .await;
                             println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
                             records = vec![];
                             break;
@@ -189,13 +153,6 @@ pub async fn in_network_file_root(
 
                             let start_time_packet = std::time::Instant::now();
                             let job_id_clone = job_id.clone();
-                            let message_count = submit_in_network_rabbitmq(
-                                records,
-                                &provider_map_local,
-                                &mut producer,
-                                &job_id_clone,
-                            )
-                            .await;
                             println!(
                                 "Submitted {} messages in {:.2?} ({:.2} messages/sec)",
                                 message_count,
@@ -271,12 +228,12 @@ pub async fn in_network_file_root(
                 reader.end_array();
 
                 // Process provider references in parallel chunks of 500, including fetching location data
-                println!("Processing {} provider_references in parallel chunks of 500 (including location fetches)...", provider_refs.len());
                 let fetch_start_time = std::time::Instant::now();
                 let chunk_size = std::env::var("PROVIDER_REFERENCE_CHUNK_SIZE")
-                    .ok()
-                    .and_then(|s| s.parse::<usize>().ok())
-                    .unwrap_or(500);
+                .ok()
+                .and_then(|s| s.parse::<usize>().ok())
+                .unwrap_or(500);
+                println!("Processing {} provider_references in parallel chunks of {} (including location fetches)...", provider_refs.len(), chunk_size);
                 let mut processed_refs = Vec::with_capacity(provider_refs.len());
 
                 for (chunk_idx, chunk) in provider_refs.chunks(chunk_size).enumerate() {
