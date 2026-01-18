@@ -7,7 +7,7 @@ import { taskRoot } from "./tasks/taskRoot";
 
 
 // Initialize:
-const rabbit = new Connection(`amqp://guest:guest@${process.env.RABBITMQ_HOST || "localhost"}:5672`)
+const rabbit = new Connection(`amqp://${process.env.RABBITMQ_USER || "guest"}:${process.env.RABBITMQ_PASSWORD || "guest"}@${process.env.RABBITMQ_HOST || "localhost"}:5672`)
 rabbit.on('error', (err) => {
     console.log('RabbitMQ connection error', err)
 })

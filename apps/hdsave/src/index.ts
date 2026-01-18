@@ -9,8 +9,8 @@ async function main() {
     const client = await connect({
         hostname: process.env.RABBITMQ_HOST || "localhost",
         port: 5552,
-        username: "guest",
-        password: "guest",
+        username: process.env.RABBITMQ_USER || "guest",
+        password: process.env.RABBITMQ_PASSWORD || "guest",
         vhost: "/",
     })
 

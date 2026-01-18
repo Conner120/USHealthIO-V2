@@ -11,7 +11,9 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="test">
+    <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="fix: update RabbitMQ host configuration to use environment variable">
+      <change beforePath="$PROJECT_DIR$/../../apps/admin/lib/kafka.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/admin/lib/kafka.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/index.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/in_network/file_root.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/file_root.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -167,7 +169,7 @@
       <workItem from="1764453864987" duration="8913000" />
       <workItem from="1764467373067" duration="28297000" />
       <workItem from="1768611481016" duration="595000" />
-      <workItem from="1768619475743" duration="26031000" />
+      <workItem from="1768619475743" duration="26675000" />
     </task>
     <task id="LOCAL-00001" summary="test">
       <option name="closed" value="true" />
@@ -177,7 +179,15 @@
       <option name="project" value="LOCAL" />
       <updated>1743295513819</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="fix: update RabbitMQ host configuration to use environment variable">
+      <option name="closed" value="true" />
+      <created>1768700764076</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1768700764076</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -185,7 +195,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="test" />
-    <option name="LAST_COMMIT_MESSAGE" value="test" />
+    <MESSAGE value="fix: update RabbitMQ host configuration to use environment variable" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: update RabbitMQ host configuration to use environment variable" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

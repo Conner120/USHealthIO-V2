@@ -50,11 +50,15 @@ pub async fn in_network_file_root(
     job_id: &String,
 ) -> Result<InNetworkFileRoot, InNetworkFileError> {
     let rabbitmq_host = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "localhost".to_string());
+    let rabbitmq_username =
+        std::env::var("RABBITMQ_USER").unwrap_or_else(|_| "guest".to_string());
+    let rabbitmq_password =
+        std::env::var("RABBITMQ_PASSWORD").unwrap_or_else(|_| "guest".to_string());
     let environment = Environment::builder()
         .host(rabbitmq_host.as_str())
         .port(5552)
-        .username("guest")
-        .password("guest")
+        .username(rabbitmq_username.as_str())
+        .password(rabbitmq_password.as_str())
         .build()
         .await
         .unwrap();
