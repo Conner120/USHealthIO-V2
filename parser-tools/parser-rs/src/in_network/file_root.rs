@@ -273,7 +273,10 @@ pub async fn in_network_file_root(
                 // Process provider references in parallel chunks of 500, including fetching location data
                 println!("Processing {} provider_references in parallel chunks of 500 (including location fetches)...", provider_refs.len());
                 let fetch_start_time = std::time::Instant::now();
-                let chunk_size = 500;
+                let chunk_size = std::env::var("PROVIDER_REFERENCE_CHUNK_SIZE")
+                    .ok()
+                    .and_then(|s| s.parse::<usize>().ok())
+                    .unwrap_or(500);
                 let mut processed_refs = Vec::with_capacity(provider_refs.len());
 
                 for (chunk_idx, chunk) in provider_refs.chunks(chunk_size).enumerate() {
