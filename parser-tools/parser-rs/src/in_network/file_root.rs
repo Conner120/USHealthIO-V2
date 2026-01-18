@@ -49,8 +49,9 @@ pub async fn in_network_file_root(
     producer: &ThreadedProducer<DefaultProducerContext>,
     job_id: &String,
 ) -> Result<InNetworkFileRoot, InNetworkFileError> {
+    let rabbitmq_host = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "localhost".to_string());
     let environment = Environment::builder()
-        .host("localhost")
+        .host(rabbitmq_host.as_str())
         .port(5552)
         .username("guest")
         .password("guest")

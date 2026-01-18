@@ -12,18 +12,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="test">
-      <change beforePath="$PROJECT_DIR$/../../apps/admin/lib/kafka.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/admin/lib/kafka.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/admin/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/admin/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdas/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdas/nodemon.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/nodemon.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdas/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/tasks/ImportCigna.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/tasks/ImportCigna.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/tasks/taskRoot.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/tasks/taskRoot.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../bun.lock" beforeDir="false" afterPath="$PROJECT_DIR$/../../bun.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/in_network/file_root.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/file_root.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -179,7 +167,7 @@
       <workItem from="1764453864987" duration="8913000" />
       <workItem from="1764467373067" duration="28297000" />
       <workItem from="1768611481016" duration="595000" />
-      <workItem from="1768619475743" duration="24764000" />
+      <workItem from="1768619475743" duration="26031000" />
     </task>
     <task id="LOCAL-00001" summary="test">
       <option name="closed" value="true" />
