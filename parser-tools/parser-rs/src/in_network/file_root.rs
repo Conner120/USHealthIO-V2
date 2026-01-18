@@ -153,12 +153,12 @@ pub async fn in_network_file_root(
 
                             let start_time_packet = std::time::Instant::now();
                             let job_id_clone = job_id.clone();
-                            println!(
-                                "Submitted {} messages in {:.2?} ({:.2} messages/sec)",
-                                message_count,
-                                start_time_packet.elapsed(),
-                                message_count as f64 / start_time_packet.elapsed().as_secs_f64()
-                            );
+                            // println!(
+                            //     "Submitted {} messages in {:.2?} ({:.2} messages/sec)",
+                            //     message_count,
+                            //     start_time_packet.elapsed(),
+                            //     message_count as f64 / start_time_packet.elapsed().as_secs_f64()
+                            // );
                             records = vec![];
                             offset = counter;
                         }
