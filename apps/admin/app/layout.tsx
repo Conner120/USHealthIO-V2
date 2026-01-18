@@ -48,6 +48,11 @@ const BreadCrumbs = [
         name: "Sources",
         part: "insurance/companies/[id]/source",
         href: "/insurance/companies/(.*|!new)/source",
+    },
+    {
+        name: "Plans",
+        part: "insurance/plans",
+        href: "/insurance/plans",
     }
 ]
 export default function RootLayout({children}: { children: React.ReactNode }) {

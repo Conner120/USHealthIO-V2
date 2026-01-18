@@ -48,7 +48,7 @@ const data = {
                 },
                 {
                     title: "Insurance Plans",
-                    url: "#",
+                    url: "/insurance/plans",
                 },
                 {
                     title: "Setup Insurance Companies",
