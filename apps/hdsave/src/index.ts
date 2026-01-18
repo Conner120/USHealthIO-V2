@@ -1,13 +1,13 @@
-import {connect, Offset} from "rabbitmq-stream-js-client"
-import type {Message} from "rabbitmq-stream-js-client/dist/publisher"
-import {provider} from "./bundle";
+import { connect, Offset } from "rabbitmq-stream-js-client"
+import type { Message } from "rabbitmq-stream-js-client/dist/publisher"
+import { provider } from "./bundle";
 import * as console from "node:console";
 import * as process from "node:process";
 import ProtoProviderNegotiationKafkaMessage = provider.ProtoProviderNegotiationKafkaMessage;
 
 async function main() {
     const client = await connect({
-        hostname: "localhost",
+        hostname: process.env.RABBITMQ_HOST || "localhost",
         port: 5552,
         username: "guest",
         password: "guest",

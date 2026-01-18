@@ -5,7 +5,7 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import { Connection } from 'rabbitmq-client'
 
 // Initialize:
-const rabbit = new Connection('amqp://guest:guest@localhost:5672')
+const rabbit = new Connection(`amqp://guest:guest@${process.env.RABBITMQ_HOST || "localhost"}:5672`)
 rabbit.on('error', (err) => {
     console.log('RabbitMQ connection error', err)
 })
