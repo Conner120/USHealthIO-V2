@@ -12,6 +12,7 @@ rdkafka = "0.38.0"
 serde = { version = "1.0.228", features = ["derive"] }
 protobuf = "2.28.0"
 reqwest = {version = "0.12.24", features = ["json", "gzip", "brotli"] }
+rabbitmq-stream-client = "*"
 
 [[bin]]
 name = "main"

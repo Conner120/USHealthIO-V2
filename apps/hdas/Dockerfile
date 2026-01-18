@@ -10,7 +10,13 @@ COPY turbo.json .
 COPY bun.lock .
 COPY package.json .
 RUN apt-get update -y && apt-get install -y openssl curl gzip unzip coreutils libc6
-COPY parser-tools/parser-rs/target/release/main ./parser-tools/parser-rs/target/release/main
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+COPY parser-tools/parser-rs/build.rs ./parser-tools/parser-rs/build.rs
+COPY parser-tools/parser-rs/Cargo.toml ./parser-tools/parser-rs/Cargo.toml
+COPY parser-tools/parser-rs/src ./parser-tools/parser-rs/src
+WORKDIR /app/parser-tools/parser-rs
+RUN cargo build --release
 # Install Turbo globally
 RUN bun add --global turbo
 RUN bun install

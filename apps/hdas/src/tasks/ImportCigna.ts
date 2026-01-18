@@ -1,10 +1,10 @@
 import axios from "axios";
 import fs from "fs";
-import { producer } from "..";
 import { FileExtension, FileType, InsurancePlanIdType, InsurancePlanMarketType, Prisma, prisma } from "@repo/database";
 import type { TaskPayload } from "./taskRoot";
 import { generateId, IDTYPE } from "@repo/id-gen";
 import { makePlanHash } from "@repo/object-hash";
+import { pub } from "..";
 export async function importCignaData(data: TaskPayload, heartbeat?: () => Promise<void>) {
     console.log("Updating job status to DOWNLOADING", data);
     const importSource = await prisma.insuranceScanSource.findUnique({
@@ -157,21 +157,18 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             console.log("Blocking in-network imports as per environment variable.");
             continue;
         }
-        await producer.send({
-            topic: `${process.env.KAFKA_PREFIX}in-network-file`,
-            messages: chunkDatabase.map(fileToImport => ({
-                value: JSON.stringify({
-                    id: fileToImport.id,
-                    topic: 'in-network-file',
-                    payload: {
-                        sourceType: 'CIGNA_INDEX_API',
-                        url: fileToImport.fileUrl!,
-                        insuranceCompanyId: importSource?.insuranceCompanyId || null,
-                        insuranceImportSourceId: importSource?.id || null,
-                    }
-                }),
-            })),
-        });
+        await Promise.all(chunkDatabase.map(fileToImport =>
+            pub.send({ exchange: 'jobs' }, {
+                id: fileToImport.id,
+                type: 'in-network-file',
+                payload: {
+                    sourceType: 'CIGNA_INDEX_API',
+                    url: fileToImport.fileUrl!,
+                    insuranceCompanyId: importSource?.insuranceCompanyId || null,
+                    insuranceImportSourceId: importSource?.id || null,
+                }
+            })
+        ));
         console.log(`Dispatched in-network-file chunk with ${chunk.length} files.`);
     }
     for (let i = 0; i < filesToImport.filter(f => f.file.type === "allowed_amount").length; i += chunkSize) {
@@ -196,21 +193,18 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             console.log("Blocking allowed-amount imports as per environment variable.");
             continue;
         }
-        await producer.send({
-            topic: `${process.env.KAFKA_PREFIX}allowed-amount`,
-            messages: chunkDatabase.map(fileToImport => ({
-                value: JSON.stringify({
-                    id: fileToImport.id,
-                    topic: 'allowed-amount-file',
-                    payload: {
-                        sourceType: 'CIGNA_INDEX_API',
-                        url: fileToImport.fileUrl!,
-                        insuranceCompanyId: importSource?.insuranceCompanyId || null,
-                        insuranceImportSourceId: importSource?.id || null,
-                    }
-                }),
-            })),
-        });
+        await Promise.all(chunkDatabase.map(fileToImport =>
+            pub.send({ exchange: 'jobs' }, {
+                id: fileToImport.id,
+                type: 'allowed-amount-file',
+                payload: {
+                    sourceType: 'CIGNA_INDEX_API',
+                    url: fileToImport.fileUrl!,
+                    insuranceCompanyId: importSource?.insuranceCompanyId || null,
+                    insuranceImportSourceId: importSource?.id || null,
+                }
+            })
+        ));
         console.log(`Dispatched allowed-amount chunk with ${chunk.length} files.`);
     }
     await prisma.insuranceScanJob.update({

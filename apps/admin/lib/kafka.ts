@@ -1,17 +1,27 @@
 "use server"
-import { Kafka } from "kafkajs";
-import { Prisma, prisma } from "@repo/database";
+import { prisma } from "@repo/database";
 import { generateId, IDTYPE } from "@repo/id-gen";
 import { withAuth } from "@workos-inc/authkit-nextjs";
+import { Connection } from 'rabbitmq-client'
 
-const kafka = new Kafka({
-    clientId: 'health-admin',
-    brokers: [process.env.KAFKA_BROKER as string], // Replace it with your Kafka broker addresses
-});
-
+// Initialize:
+const rabbit = new Connection('amqp://guest:guest@localhost:5672')
+rabbit.on('error', (err) => {
+    console.log('RabbitMQ connection error', err)
+})
+rabbit.on('connection', () => {
+    console.log('Connection successfully (re)established')
+})
+const pub = rabbit.createPublisher({
+    // Enable publish confirmations, similar to consumer acknowledgements
+    confirm: true,
+    // Enable retries
+    maxAttempts: 2,
+    // Optionally ensure the existence of an exchange before we use it
+    exchanges: [{ exchange: 'jobs', type: 'direct' }],
+})
 export async function SendTICJobTrigger(id: string, jobId: string) {
     const { user } = await withAuth({ ensureSignedIn: true });
-    const producer = kafka.producer()
     const importSource = await prisma.insuranceScanSource.findFirst(
         {
             where: {
@@ -33,21 +43,12 @@ export async function SendTICJobTrigger(id: string, jobId: string) {
             updatedBy: user?.id as string,
         }
     })
-    await producer.connect()
-    await producer.send({
-        topic: `${process.env.KAFKA_PREFIX}insurance-source-scan-jobs`,
-        messages: [
-            {
-                value: JSON.stringify({
-                    id: scanJob.id,
-                    type: 'insurance-source-scan-jobs',
-                    payload: importSource
-                })
-            },
-        ],
-    })
-    // sleep for 200ms
-    await new Promise(resolve => setTimeout(resolve, 200))
-
-    await producer.disconnect()
+    console.log('Publishing TIC Job Trigger for scan job', scanJob.id);
+    await pub.send({
+        exchange: 'jobs',
+    }, {
+        id: scanJob.id,
+        type: 'insurance-source-scan-jobs',
+        payload: importSource
+    });
 }

@@ -1,7 +1,3 @@
-use crate::create_producer;
-use crate::in_network::kafka_messages::{
-    NegotiatedPriceKafkaMessage, ProcedureKafkaMessage, ProviderNegotiationKafkaMessage,
-};
 use crate::in_network::types::in_network::{in_network_object, InNetworkObject};
 use crate::in_network::types::provider_references::ProviderReferenceObject;
 use crate::kafka::{
@@ -9,23 +5,31 @@ use crate::kafka::{
     ProtoProviderNegotiationKafkaMessage, ProtoProviderObject, ProtoTaxIdentifier,
 };
 use protobuf::Message;
-use rdkafka::producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer};
+use rabbitmq_stream_client::types::{
+    HashRoutingMurmurStrategy, RoutingStrategy, SuperStreamProducer,
+};
+use rabbitmq_stream_client::{types::ByteCapacity, Environment, NoDedup, Producer};
+use rdkafka::producer::{DefaultProducerContext, ThreadedProducer};
 use serde::Serialize;
 use std::collections::HashMap;
-use std::env;
-use std::fmt::format;
 use std::fs::File;
-use std::iter::Map;
-use std::time::Duration;
 use struson::json_path;
-use struson::reader::json_path::JsonPath;
 use struson::reader::{JsonReader, JsonStreamReader};
 
 #[derive(Debug)]
 pub struct InNetworkFileError {
     pub message: String,
 }
-
+fn hash_strategy_value_extractor(message: &rabbitmq_stream_client::types::Message) -> String {
+    message
+        .application_properties()
+        .unwrap()
+        .get("id")
+        .unwrap()
+        .clone()
+        .try_into()
+        .unwrap()
+}
 #[derive(Debug, Clone, Serialize)]
 pub struct InNetworkFileRoot {
     pub reporting_entity_name: String,
@@ -43,8 +47,33 @@ pub struct InNetworkFileRoot {
 pub async fn in_network_file_root(
     reader: &mut JsonStreamReader<File>,
     producer: &ThreadedProducer<DefaultProducerContext>,
-    job_id: &String
+    job_id: &String,
 ) -> Result<InNetworkFileRoot, InNetworkFileError> {
+    let environment = Environment::builder()
+        .host("localhost")
+        .port(5552)
+        .username("guest")
+        .password("guest")
+        .build()
+        .await
+        .unwrap();
+
+    println!("creating batch_send stream");
+    environment
+        .stream_creator()
+        .max_length(ByteCapacity::GB(2))
+        .create_super_stream("in_network_rates", 5, None)
+        .await;
+
+    let mut producer = environment
+        .super_stream_producer(RoutingStrategy::HashRoutingStrategy(
+            HashRoutingMurmurStrategy {
+                routing_extractor: &hash_strategy_value_extractor,
+            },
+        ))
+        .build("in_network_rates")
+        .await
+        .expect("Failed to create super stream producer");
     let mut data = InNetworkFileRoot {
         reporting_entity_name: String::new(),
         reporting_entity_type: "".to_string(),
@@ -131,36 +160,45 @@ pub async fn in_network_file_root(
                     loop {
                         let has_next = reader.has_next().unwrap();
                         if !has_next {
+                            println!("No more in_network objects to process publishing remaining {} records...", records.len());
                             let provider_map_local = provider_map.clone();
-                            submit_in_network(records, &provider_map_local, producer, &job_id).await;
+                            let mut producer = producer.clone();
+                            submit_in_network_rabbitmq(
+                                records,
+                                &provider_map_local,
+                                &mut producer,
+                                &job_id,
+                            )
+                            .await;
                             println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
                             records = vec![];
                             break;
                         }
                         let in_network = in_network_object(reader).expect("TODO: panic message");
-                        counter += in_network.negotiated_rate.len();
+                        for rate in in_network.negotiated_rate.iter() {
+                            counter += rate.negotiated_prices.len();
+                        }
                         records.push(in_network);
-
-                        if (counter - offset) > 50000 {
+                        if (counter - offset) > 400000 {
                             let provider_map_local = provider_map.clone();
-                            let chunk = std::mem::take(&mut records);
-                            records = vec![];
-                            offset = counter;
+
                             let start_time_packet = std::time::Instant::now();
                             let job_id_clone = job_id.clone();
-                            tokio::spawn(async move {
-                                let producer = create_producer();
-                                let message_count =
-                                    submit_in_network(chunk, &provider_map_local, &producer, &job_id_clone).await;
-                                println!(
-                                    "Submitted {} messages in {:.2?} ({:.2} messages/sec)",
-                                    message_count,
-                                    start_time_packet.elapsed(),
-                                    message_count as f64
-                                        / start_time_packet.elapsed().as_secs_f64()
-                                );
-                                println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
-                            });
+                            let message_count = submit_in_network_rabbitmq(
+                                records,
+                                &provider_map_local,
+                                &mut producer,
+                                &job_id_clone,
+                            )
+                            .await;
+                            println!(
+                                "Submitted {} messages in {:.2?} ({:.2} messages/sec)",
+                                message_count,
+                                start_time_packet.elapsed(),
+                                message_count as f64 / start_time_packet.elapsed().as_secs_f64()
+                            );
+                            records = vec![];
+                            offset = counter;
                         }
                     }
                     reader.end_array();
@@ -303,15 +341,16 @@ pub async fn in_network_file_root(
     println!("number of in_network objects: {}", data.in_network.len());
     Ok(data)
 }
-
-async fn submit_in_network(
+async fn submit_in_network_rabbitmq(
     mut records: Vec<InNetworkObject>,
     provider_map: &HashMap<i64, ProtoProviderMessage>,
-    producer: &ThreadedProducer<DefaultProducerContext>,
-    job_id: &String
+    producer: &mut SuperStreamProducer<NoDedup>,
+    job_id: &String,
 ) -> i64 {
+    println!("Connected to rabbitmq stream");
     let mut count = 0;
     let start_time_packet = std::time::Instant::now();
+    let mut messages = Vec::<rabbitmq_stream_client::types::Message>::new();
     for record in records.drain(..) {
         let key = format!("{}", record.billing_code);
         let mut proto_procedure = ProtoProcedureKafkaMessage::new();
@@ -394,49 +433,29 @@ async fn submit_in_network(
                 t_chunk.set_negotiated_prices(t.negotiated_prices.clone());
                 t_chunk.set_provider_group(chunk.iter().map(|x| x.clone()).collect());
                 let bytes = t_chunk.write_to_bytes().unwrap();
-                let mut topic = "in-network-rates".to_string();
-                if env::var("KAFKA_TOPIC").is_ok() {
-                    let topic_env = env::var("KAFKA_TOPIC").unwrap();
-                    let t = format!("{topic_env}-in-network-rates");
-                    topic = t;
-                }
-                let base_record = BaseRecord::to(&topic).key(&key).payload(&bytes);
+                let message = rabbitmq_stream_client::types::Message::builder()
+                    .body(bytes)
+                    .application_properties()
+                    .insert("id", count.to_string())
+                    .message_builder()
+                    .build();
+                producer
+                    .send(message, |confirmation_status| async move {
+                        if confirmation_status.is_ok() {
+                            // Message was acknowledged
+                        } else {
+                            // Message was not acknowledged
+                            eprintln!("Message not acknowledged: {:?}", confirmation_status);
+                        }
+                    })
+                    .await
+                    .expect("TODO: panic message");
+
                 count += 1;
-                match producer.send(base_record) {
-                    Ok(_) => {}
-                    Err((e, _)) => {
-                        eprintln!("Error sending record: {:?}", e);
-                        // print the whole record for debugging purposes
-                        let procedure = t_chunk.procedure.clone().unwrap();
-                        println!("name: {}", procedure.name);
-                        println!(
-                            "negotiation_arrangement: {}",
-                            procedure.negotiation_arrangement
-                        );
-                        println!("billing_code: {}", procedure.billing_code);
-                        println!("billing_code_type: {}", procedure.billing_code_type);
-                        println!(
-                            "billing_code_type_version: {}",
-                            procedure.billing_code_type_version
-                        );
-                        println!("description: {}", procedure.description);
-                        println!("negotiated_prices: {:?}", t_chunk.negotiated_prices.len());
-                        println!("provider_groups: {:?}", t_chunk.provider_group.len());
-                        println!("Size of message: {} bytes", bytes.len());
-                        println!("----------------------------------------");
-                    }
-                }
             }
         }
     }
-
     println!("test:{}", start_time_packet.elapsed().as_secs_f64());
-    let flush = producer.flush(Duration::from_secs(20));
-    if flush.is_err() {
-        eprintln!("Failed to flush producer: {:?}", flush.err());
-    } else {
-        println!("Flushed producer");
-    }
     count as i64
 }
 

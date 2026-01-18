@@ -3,5 +3,6 @@
     "src"
   ],
   "exec": "bun src/index.ts",
+  "signal": "SIGINT",
   "ext": "ts"
 }

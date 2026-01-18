@@ -4,7 +4,7 @@ import { importCignaData } from "./ImportCigna";
 import { getFile } from "../filePrep";
 import { prisma } from "@repo/database";
 let t = BigInt(0);
-export async function taskRoot(topicInput: String, taskPayload: TaskPayload, heartbeat?: () => Promise<void>) {
+export async function taskRoot(topicInput: String, taskPayload: TaskPayload) {
     const topic = topicInput.replace(process.env.KAFKA_PREFIX as string, '');
     if (topic === 'in-network-file') {
         if (taskPayload.payload.url.includes('sagamorehn.com')) {

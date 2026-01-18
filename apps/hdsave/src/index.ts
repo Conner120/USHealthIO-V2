@@ -1,59 +1,43 @@
-import { type EachMessagePayload, Kafka, CompressionTypes, CompressionCodecs } from 'kafkajs';
-import { redis } from "bun";
-import { createId } from "@paralleldrive/cuid2";
-import { prisma } from '@repo/database';
-import { provider } from "./bundle"
+import {connect, Offset} from "rabbitmq-stream-js-client"
+import type {Message} from "rabbitmq-stream-js-client/dist/publisher"
+import {provider} from "./bundle";
+import * as console from "node:console";
+import * as process from "node:process";
+import ProtoProviderNegotiationKafkaMessage = provider.ProtoProviderNegotiationKafkaMessage;
 
-export const kafka = new Kafka({
-    clientId: 'health-data-acquisition-system',
-    brokers: [process.env.KAFKA_BROKER as string], // Replace it with your Kafka broker addresses
-});
-const kafkaProducer = new Kafka({
-    clientId: 'health-data-acquisition-system',
-    brokers: [process.env.KAFKA_BROKER as string], // Replace it with your Kafka broker addresses
-});
+async function main() {
+    const client = await connect({
+        hostname: "localhost",
+        port: 5552,
+        username: "guest",
+        password: "guest",
+        vhost: "/",
+    })
 
-
-// generate random node id
-export const processId = createId();
-await redis.hset('NODES', processId, "IDLE");
-// Handle a graceful shutdown
-const shutdown = async () => {
-    try {
-        await redis.hdel('NODES', processId);
-        await producer.disconnect();
-        console.log('Consumer disconnected');
-        process.exit(0);
-    } catch (error) {
-        console.error('Error during consumer shutdown:', error);
-        process.exit(1);
+    const consumerOptions = {
+        stream: `in_network_rates-${process.env.ID}`,
+        offset: Offset.first(),
     }
-};
-
-process.on('SIGTERM', shutdown);
-// handle nodemon restarts
-process.on('SIGUSR2', shutdown);
-process.on('SIGINT', shutdown);
-
-export const producer = kafkaProducer.producer();
-await producer.connect();
-const consumer = kafka.consumer({ groupId: `${process.env.KAFKA_PREFIX}hdsave-parser` });
-await consumer.connect();
-console.log('Consumer connected');
-let startTime = Date.now();
-let count = 0;
-await consumer.subscribe({ topics: ['in-network-rates'].map(topic => `${process.env.KAFKA_PREFIX}${topic}`), fromBeginning: true }); // Subscribe to 'in_network', start from the beginning
-await consumer.run({
-    eachMessage: async ({ topic, partition, message, heartbeat }: EachMessagePayload) => {
-        let t = provider.ProtoProviderNegotiationKafkaMessage.decode(message.value as Uint8Array);
+    let count = 0
+    let start = Date.now()
+    const consumer = await client.declareConsumer(consumerOptions, async (message: Message) => {
         count++;
-        let now = Date.now();
-        if (now - startTime > 10000) {
-            // calculate per second
-            let rate = count / ((now - startTime) / 1000);
-            console.log(`Processing rate: ${rate.toFixed(2)} messages/second`);
-            startTime = now;
+        let data = ProtoProviderNegotiationKafkaMessage.decode(message.content);
+        // await sleep(100);
+        // print every 1000 messages and the rate
+        if (count % 2000 === 0) {
+            const now = Date.now();
+            const rate = count / ((now - start) / 1000);
+            console.log(`Received ${count} messages. Rate: ${rate.toFixed(2)} messages/second. at: ${message.offset}`);
+            start = now;
             count = 0;
+            // ack the message
         }
-    },
-});
+    })
+}
+
+async function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+main();
