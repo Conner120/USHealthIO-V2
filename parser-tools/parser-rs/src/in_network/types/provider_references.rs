@@ -69,19 +69,18 @@ pub async fn provider_reference_object(
     reader.end_object().expect("TODO: panic message");
     Ok(data)
 }
-
+let client = reqwest::Client::builder()
+    .gzip(true)
+    .brotli(true)
+    .build()
+    .map_err(|e| InNetworkFileError {
+        message: format!("Failed to create HTTP client: {}", e),
+    })?;
 /// Fetches provider reference data from a location URL and merges it into the existing provider reference add a fetch retry 3 times
 pub async fn fetch_and_merge_location_data(
     mut provider_ref: ProviderReferenceObject,
 ) -> Result<ProviderReferenceObject, InNetworkFileError> {
     if let Some(location) = &provider_ref.location {
-        let client = reqwest::Client::builder()
-            .gzip(true)
-            .brotli(true)
-            .build()
-            .map_err(|e| InNetworkFileError {
-                message: format!("Failed to create HTTP client: {}", e),
-            })?;
         let mut failed_attempts = 0;
         loop {
             let response = client
