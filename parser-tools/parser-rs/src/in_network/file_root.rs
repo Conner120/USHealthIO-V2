@@ -296,13 +296,9 @@ pub async fn in_network_file_root(
                             }
                             Ok(Err(e)) => {
                                 eprintln!("Error processing provider reference: {}", e.message);
-                                return Err(e);
                             }
                             Err(e) => {
                                 eprintln!("Error in parallel task: {:?}", e);
-                                return Err(InNetworkFileError {
-                                    message: format!("Parallel task error: {:?}", e),
-                                });
                             }
                         }
                     }

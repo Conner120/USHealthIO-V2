@@ -3,7 +3,7 @@ import { prisma } from "@repo/database";
 import { generateId, IDTYPE } from "@repo/id-gen";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { Connection } from 'rabbitmq-client'
-
+console.log(process.env);
 // Initialize:
 const rabbit = new Connection(`amqp://${process.env.RABBITMQ_USER || "guest"}:${process.env.RABBITMQ_PASSWORD || "guest"}@${process.env.RABBITMQ_HOST || "localhost"}:5672`)
 rabbit.on('error', (err) => {
