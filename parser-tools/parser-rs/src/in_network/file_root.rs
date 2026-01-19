@@ -46,7 +46,7 @@ pub struct InNetworkFileRoot {
 }
 pub async fn in_network_file_root(
     reader: &mut JsonStreamReader<File>,
-    producer: &ThreadedProducer<DefaultProducerContext>,
+    _producer: &ThreadedProducer<DefaultProducerContext>,
     job_id: &String,
 ) -> Result<InNetworkFileRoot, InNetworkFileError> {
     let mut data = InNetworkFileRoot {
@@ -64,6 +64,36 @@ pub async fn in_network_file_root(
     };
     reader.begin_object();
     let mut counter: usize = 0;
+    let rabbitmq_host = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "localhost".to_string());
+    let rabbitmq_username =
+        std::env::var("RABBITMQ_USER").unwrap_or_else(|_| "guest".to_string());
+    let rabbitmq_password =
+        std::env::var("RABBITMQ_PASSWORD").unwrap_or_else(|_| "guest".to_string());
+    let environment = Environment::builder()
+        .host(rabbitmq_host.as_str())
+        .port(5552)
+        .username(rabbitmq_username.as_str())
+        .password(rabbitmq_password.as_str())
+        .build()
+        .await
+        .unwrap();
+
+    println!("creating batch_send stream");
+    environment
+        .stream_creator()
+        .max_length(ByteCapacity::GB(5))
+        .create_super_stream("in_network_rates", 5, None)
+        .await;
+
+    let mut producer = environment
+        .super_stream_producer(RoutingStrategy::HashRoutingStrategy(
+            HashRoutingMurmurStrategy {
+                routing_extractor: &hash_strategy_value_extractor,
+            },
+        ))
+        .build("in_network_rates")
+        .await
+        .expect("Failed to create super stream producer");
     let mut start_time = std::time::Instant::now();
     let mut need_to_process_in_network_loop_back = false;
     loop {
@@ -153,12 +183,12 @@ pub async fn in_network_file_root(
 
                             let start_time_packet = std::time::Instant::now();
                             let job_id_clone = job_id.clone();
-                            // println!(
-                            //     "Submitted {} messages in {:.2?} ({:.2} messages/sec)",
-                            //     message_count,
-                            //     start_time_packet.elapsed(),
-                            //     message_count as f64 / start_time_packet.elapsed().as_secs_f64()
-                            // );
+                            submit_in_network_rabbitmq(
+                                records,
+                                &provider_map_local,
+                                &mut producer,
+                                &job_id_clone,
+                            ).await;
                             records = vec![];
                             offset = counter;
                         }
@@ -315,12 +345,9 @@ async fn submit_in_network_rabbitmq(
     producer: &mut SuperStreamProducer<NoDedup>,
     job_id: &String,
 ) -> i64 {
-    println!("Connected to rabbitmq stream");
     let mut count = 0;
     let start_time_packet = std::time::Instant::now();
-    let mut messages = Vec::<rabbitmq_stream_client::types::Message>::new();
     for record in records.drain(..) {
-        let key = format!("{}", record.billing_code);
         let mut proto_procedure = ProtoProcedureKafkaMessage::new();
         proto_procedure.set_negotiation_arrangement(record.negotiation_arrangement);
         proto_procedure.set_name(record.name);
