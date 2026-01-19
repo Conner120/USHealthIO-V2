@@ -5,9 +5,6 @@ use crate::kafka::{
     ProtoProviderNegotiationKafkaMessage, ProtoProviderObject, ProtoTaxIdentifier,
 };
 use protobuf::Message;
-use rabbitmq_stream_client::types::{
-    HashRoutingMurmurStrategy, RoutingStrategy, SuperStreamProducer,
-};
 use rabbitmq_stream_client::{types::ByteCapacity, Environment, NoDedup, Producer};
 use rdkafka::producer::{DefaultProducerContext, ThreadedProducer};
 use serde::Serialize;
@@ -64,9 +61,9 @@ pub async fn in_network_file_root(
     };
     reader.begin_object();
     let mut counter: usize = 0;
+    let mut counter_messages: usize = 0;
     let rabbitmq_host = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "localhost".to_string());
-    let rabbitmq_username =
-        std::env::var("RABBITMQ_USER").unwrap_or_else(|_| "guest".to_string());
+    let rabbitmq_username = std::env::var("RABBITMQ_USER").unwrap_or_else(|_| "guest".to_string());
     let rabbitmq_password =
         std::env::var("RABBITMQ_PASSWORD").unwrap_or_else(|_| "guest".to_string());
     let environment = Environment::builder()
@@ -82,18 +79,13 @@ pub async fn in_network_file_root(
     environment
         .stream_creator()
         .max_length(ByteCapacity::GB(5))
-        .create_super_stream("in_network_rates", 5, None)
+        .create("in_network_rates")
         .await;
-
-    let mut producer = environment
-        .super_stream_producer(RoutingStrategy::HashRoutingStrategy(
-            HashRoutingMurmurStrategy {
-                routing_extractor: &hash_strategy_value_extractor,
-            },
-        ))
+    let producer = environment
+        .producer()
         .build("in_network_rates")
         .await
-        .expect("Failed to create super stream producer");
+        .unwrap();
     let mut start_time = std::time::Instant::now();
     let mut need_to_process_in_network_loop_back = false;
     loop {
@@ -112,7 +104,9 @@ pub async fn in_network_file_root(
                     .seek_back(&json_path!["in_network"])
                     .expect("TODO: panic message");
                 // roll reader back to in_network start
-                reader.seek_back(&json_path!["in_network"]).expect("TODO: panic message");
+                reader
+                    .seek_back(&json_path!["in_network"])
+                    .expect("TODO: panic message");
             } else {
                 break;
             }
@@ -169,7 +163,17 @@ pub async fn in_network_file_root(
                         if !has_next {
                             println!("No more in_network objects to process publishing remaining {} records...", records.len());
                             let provider_map_local = provider_map.clone();
-                            println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64());
+                            let start_time_packet = std::time::Instant::now();
+                            let job_id_clone = job_id.clone();
+                            let total_messages_made = submit_in_network_rabbitmq(
+                                records,
+                                &provider_map_local,
+                                &producer,
+                                &job_id_clone,
+                            )
+                            .await;
+                            counter_messages += total_messages_made as usize;
+                            println!("Processed {} in_network objects in {:.2?}, Rate: {:.2} objects/sec Total Messages: {}", counter, start_time.elapsed(), counter as f64 / start_time.elapsed().as_secs_f64(), counter_messages);
                             records = vec![];
                             break;
                         }
@@ -177,18 +181,37 @@ pub async fn in_network_file_root(
                         for rate in in_network.negotiated_rate.iter() {
                             counter += rate.negotiated_prices.len();
                         }
+                        if (counter - offset) % 1000 == 0 {
+                            let elapsed = start_time.elapsed();
+                            println!(
+                                "Read {} in_network objects ({} records) in {:.2?} ({:.2} records/sec)",
+                                counter,
+                                counter - offset,
+                                elapsed,
+                                (counter - offset) as f64 / elapsed.as_secs_f64()
+                            );
+                        }
                         records.push(in_network);
-                        if (counter - offset) > 400000 {
+                        if (counter - offset) > 50000 {
                             let provider_map_local = provider_map.clone();
-
+                            println!("Submitting {} records to RabbitMQ...", records.len());
                             let start_time_packet = std::time::Instant::now();
                             let job_id_clone = job_id.clone();
-                            submit_in_network_rabbitmq(
+                            let total_messages_made = submit_in_network_rabbitmq(
                                 records,
                                 &provider_map_local,
-                                &mut producer,
+                                &producer,
                                 &job_id_clone,
-                            ).await;
+                            )
+                            .await;
+                            counter_messages += total_messages_made as usize;
+                            println!(
+                                "Submitted {} records to RabbitMQ in {:.2?} ({:.2} records/sec) Total Messages: {}",
+                                 counter - offset,
+                                 start_time_packet.elapsed(),
+                                 (counter - offset) as f64 / start_time_packet.elapsed().as_secs_f64(),
+                                 counter_messages
+                            );
                             records = vec![];
                             offset = counter;
                         }
@@ -260,9 +283,9 @@ pub async fn in_network_file_root(
                 // Process provider references in parallel chunks of 500, including fetching location data
                 let fetch_start_time = std::time::Instant::now();
                 let chunk_size = std::env::var("PROVIDER_REFERENCE_CHUNK_SIZE")
-                .ok()
-                .and_then(|s| s.parse::<usize>().ok())
-                .unwrap_or(500);
+                    .ok()
+                    .and_then(|s| s.parse::<usize>().ok())
+                    .unwrap_or(500);
                 println!("Processing {} provider_references in parallel chunks of {} (including location fetches)...", provider_refs.len(), chunk_size);
                 let mut processed_refs = Vec::with_capacity(provider_refs.len());
                 let client = reqwest::Client::builder()
@@ -342,10 +365,11 @@ pub async fn in_network_file_root(
 async fn submit_in_network_rabbitmq(
     mut records: Vec<InNetworkObject>,
     provider_map: &HashMap<i64, ProtoProviderMessage>,
-    producer: &mut SuperStreamProducer<NoDedup>,
+    producer: &Producer<NoDedup>,
     job_id: &String,
 ) -> i64 {
     let mut count = 0;
+    let mut messages: Vec<rabbitmq_stream_client::types::Message> = vec![];
     let start_time_packet = std::time::Instant::now();
     for record in records.drain(..) {
         let mut proto_procedure = ProtoProcedureKafkaMessage::new();
@@ -434,22 +458,24 @@ async fn submit_in_network_rabbitmq(
                     .insert("id", count.to_string())
                     .message_builder()
                     .build();
-                producer
-                    .send(message, |confirmation_status| async move {
-                        if confirmation_status.is_ok() {
-                            // Message was acknowledged
-                        } else {
-                            // Message was not acknowledged
-                            eprintln!("Message not acknowledged: {:?}", confirmation_status);
-                        }
-                    })
-                    .await
-                    .expect("TODO: panic message");
-
+                messages.push(message);
                 count += 1;
             }
         }
     }
+    producer
+        .batch_send(messages, |confirmation_status| async move {
+            if confirmation_status.is_ok() {
+                // println!("Batch sent successfully with {} messages", confirmation_status.messages_confirmed());
+            } else {
+                eprintln!(
+                    "Batch send failed: {:?}",
+                    confirmation_status.err().unwrap()
+                );
+            }
+        })
+        .await
+        .expect("Failed to send batch messages");
     println!("test:{}", start_time_packet.elapsed().as_secs_f64());
     count as i64
 }

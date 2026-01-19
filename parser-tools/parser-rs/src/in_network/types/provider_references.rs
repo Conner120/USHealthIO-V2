@@ -3,9 +3,9 @@ use crate::in_network::types::providers_object::{
     providers_object, providers_object_raw, ProvidersObject,
 };
 use reqwest::header::{HeaderValue, ACCEPT_ENCODING, USER_AGENT};
+use reqwest::Client;
 use serde::Serialize;
 use std::fs::File;
-use reqwest::Client;
 use struson::reader::{JsonReader, JsonStreamReader};
 
 #[derive(Debug, Clone, Serialize)]
@@ -74,7 +74,7 @@ pub async fn provider_reference_object(
 /// Fetches provider reference data from a location URL and merges it into the existing provider reference add a fetch retry 3 times
 pub async fn fetch_and_merge_location_data(
     mut provider_ref: ProviderReferenceObject,
-    client: &Client
+    client: &Client,
 ) -> Result<ProviderReferenceObject, InNetworkFileError> {
     if let Some(location) = &provider_ref.location {
         let mut failed_attempts = 0;
