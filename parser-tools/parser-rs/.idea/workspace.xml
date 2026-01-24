@@ -11,12 +11,10 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="fix: update RabbitMQ host configuration to use environment variable">
+    <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="fix: allow chunk size for provider references to be configured via environment variable">
       <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdsave/src/index.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/in_network/file_root.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/file_root.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/types/providers_object.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/providers_object.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -189,7 +187,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768700764076</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="fix: allow chunk size for provider references to be configured via environment variable">
+      <option name="closed" value="true" />
+      <created>1769218561335</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1769218561335</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -198,7 +204,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="test" />
     <MESSAGE value="fix: update RabbitMQ host configuration to use environment variable" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: update RabbitMQ host configuration to use environment variable" />
+    <MESSAGE value="fix: allow chunk size for provider references to be configured via environment variable" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: allow chunk size for provider references to be configured via environment variable" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -210,7 +217,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/src/in_network/file_root.rs</url>
-          <line>361</line>
+          <line>363</line>
           <option name="timeStamp" value="27" />
         </line-breakpoint>
       </breakpoints>

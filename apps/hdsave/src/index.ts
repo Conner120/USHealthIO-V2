@@ -23,8 +23,11 @@ async function main() {
     const consumer = await client.declareConsumer(consumerOptions, async (message: Message) => {
         count++;
         let data = ProtoProviderNegotiationKafkaMessage.decode(message.content);
-        console.log(JSON.stringify(data.toJSON(), null, 2));
-        await sleep(5000); // Simulate processing time
+        if (count % 1000 === 0) {
+            let duration = (Date.now() - start) / 1000;
+            console.log(`Processed ${count} messages in ${duration} seconds (${(count / duration).toFixed(2)} msg/sec)`);
+        }
+        // console.log(JSON.stringify(data.toJSON(), null, 2));
     })
 }
 

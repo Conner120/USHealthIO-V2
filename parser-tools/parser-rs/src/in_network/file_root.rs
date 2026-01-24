@@ -64,6 +64,7 @@ pub async fn in_network_file_root(
     let mut counter_messages: usize = 0;
     let rabbitmq_host = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "localhost".to_string());
     let rabbitmq_username = std::env::var("RABBITMQ_USER").unwrap_or_else(|_| "guest".to_string());
+    let shard_id = std::env::var("SHARD_ID").unwrap_or_else(|_| "0".to_string());
     let rabbitmq_password =
         std::env::var("RABBITMQ_PASSWORD").unwrap_or_else(|_| "guest".to_string());
     let environment = Environment::builder()
@@ -76,14 +77,15 @@ pub async fn in_network_file_root(
         .unwrap();
 
     println!("creating batch_send stream");
-    environment
-        .stream_creator()
+    // create stream if not exists
+    println!("creating producer");
+    let _ = environment.stream_creator()
         .max_length(ByteCapacity::GB(5))
         .create("in_network_rates")
         .await;
     let producer = environment
         .producer()
-        .build("in_network_rates")
+        .build(format!("in_network_rates-{}",shard_id).as_str())
         .await
         .unwrap();
     let mut start_time = std::time::Instant::now();
