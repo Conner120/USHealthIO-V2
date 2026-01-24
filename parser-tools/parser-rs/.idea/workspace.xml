@@ -12,8 +12,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="fix: update RabbitMQ host configuration to use environment variable">
+      <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdsave/src/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/in_network/file_root.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/file_root.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/types/providers_object.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/providers_object.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -92,7 +95,7 @@
   <component name="RunManager" selected="Cargo.Run parser-rs">
     <configuration name="Run parser-rs" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="buildProfileId" value="dev" />
-      <option name="command" value="run --package parser-rs --bin main" />
+      <option name="command" value="run -- /tmp/sa86klcs8g9678ysglfrdf4t/2026-01-01_cigna-health-life-insurance-company_localplus-with-ebh-plus-pathwell_in-network-rates.json in_network_rates sa86klcs8g9678ysglfrdf4t" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <envs />
       <option name="emulateTerminal" value="true" />
@@ -204,6 +207,11 @@
           <url>file://$PROJECT_DIR$/src/in_network/types/tax_identifier.rs</url>
           <line>17</line>
           <option name="timeStamp" value="15" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/src/in_network/file_root.rs</url>
+          <line>361</line>
+          <option name="timeStamp" value="27" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

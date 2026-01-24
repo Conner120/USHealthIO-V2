@@ -389,16 +389,17 @@ async fn submit_in_network_rabbitmq(
                     .map(|x| {
                         let mut prov = ProtoProviderMessage::new();
                         let provider = provider_map.get(x);
+
                         if provider.is_none() {
                             eprintln!("Provider {} not found in provider_map", x);
-                            return prov;
+                            return None;
                         }
                         let provider = provider.unwrap();
                         prov.set_network_name(provider.network_name.clone());
                         prov.set_provider_groups(provider.provider_groups.clone());
-                        prov
-                    })
-                    .collect(),
+
+                        Some(prov)
+                    }).filter(|x| x.is_some()).map(|x| x.unwrap()).collect(),
             );
             t.set_negotiated_prices(
                 rate.negotiated_prices
@@ -450,7 +451,7 @@ async fn submit_in_network_rabbitmq(
                 let mut t_chunk = ProtoProviderNegotiationKafkaMessage::new();
                 t_chunk.set_procedure(proto_procedure.clone());
                 t_chunk.set_negotiated_prices(t.negotiated_prices.clone());
-                t_chunk.set_provider_group(chunk.iter().map(|x| x.clone()).collect());
+                t_chunk.set_provider_group(chunk.iter().cloned().collect());
                 let bytes = t_chunk.write_to_bytes().unwrap();
                 let message = rabbitmq_stream_client::types::Message::builder()
                     .body(bytes)

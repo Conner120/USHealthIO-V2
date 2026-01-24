@@ -92,6 +92,9 @@ pub fn providers_object_raw(
             "tins" => {
                 data.tins = tax_identifier_object_raw(reader)?;
             }
+            "tin" => {
+                data.tins = tax_identifier_object_raw(reader)?;
+            }
             _ => {
                 reader.skip_value().unwrap();
             }

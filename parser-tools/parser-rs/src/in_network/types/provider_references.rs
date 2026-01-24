@@ -114,7 +114,6 @@ pub async fn fetch_and_merge_location_data(
             let bytes_vec = bytes.to_vec();
             let mut reader = JsonStreamReader::new(bytes_vec.as_slice());
             let fetched_data = provider_reference_object_from_bytes(&mut reader).await?;
-
             // Merge the fetched data: combine provider_groups and network_name
             provider_ref
                 .provider_groups

@@ -15,7 +15,7 @@ async function main() {
     })
 
     const consumerOptions = {
-        stream: `in_network_rates-${process.env.ID}`,
+        stream: `in_network_rates`,
         offset: Offset.first(),
     }
     let count = 0
@@ -23,16 +23,8 @@ async function main() {
     const consumer = await client.declareConsumer(consumerOptions, async (message: Message) => {
         count++;
         let data = ProtoProviderNegotiationKafkaMessage.decode(message.content);
-        // await sleep(100);
-        // print every 1000 messages and the rate
-        if (count % 2000 === 0) {
-            const now = Date.now();
-            const rate = count / ((now - start) / 1000);
-            console.log(`Received ${count} messages. Rate: ${rate.toFixed(2)} messages/second. at: ${message.offset}`);
-            start = now;
-            count = 0;
-            // ack the message
-        }
+        console.log(JSON.stringify(data.toJSON(), null, 2));
+        await sleep(5000); // Simulate processing time
     })
 }
 
