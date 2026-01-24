@@ -15,7 +15,7 @@ async function main() {
     })
 
     const consumerOptions = {
-        stream: `in_network_rates`,
+        stream: `in_network_rates-${process.env.SHARD_ID || 0}`,
         offset: Offset.first(),
     }
     let count = 0
@@ -27,7 +27,6 @@ async function main() {
             let duration = (Date.now() - start) / 1000;
             console.log(`Processed ${count} messages in ${duration} seconds (${(count / duration).toFixed(2)} msg/sec)`);
         }
-        // console.log(JSON.stringify(data.toJSON(), null, 2));
     })
 }
 

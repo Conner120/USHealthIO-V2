@@ -80,8 +80,8 @@ pub async fn in_network_file_root(
     // create stream if not exists
     println!("creating producer");
     let _ = environment.stream_creator()
-        .max_length(ByteCapacity::GB(5))
-        .create("in_network_rates")
+        .max_length(ByteCapacity::GB(10))
+        .create(format!("in_network_rates-{}",shard_id).as_str())
         .await;
     let producer = environment
         .producer()
