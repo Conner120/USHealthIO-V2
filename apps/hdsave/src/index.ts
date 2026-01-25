@@ -1,9 +1,11 @@
 import {connect, Offset} from "rabbitmq-stream-js-client"
 import type {Message} from "rabbitmq-stream-js-client/dist/publisher"
 import {provider} from "./bundle";
+import * as process from "node:process";
 import ProtoProviderNegotiationKafkaMessage = provider.ProtoProviderNegotiationKafkaMessage;
 
 const GB_BYTES = 1024 * 1024 * 1024;
+const shardId = (process.env.HOSTNAME ?? "").split("-").pop() || process.env.SHARD_ID || 0
 
 async function main() {
     const client = await connect({
@@ -14,7 +16,7 @@ async function main() {
         vhost: "/",
     })
     client.createStream({
-        stream: `in_network_rates-${process.env.SHARD_ID || 0}`,
+        stream: `in_network_rates-${shardId}`,
         arguments: {
             'max-length-bytes': GB_BYTES * 5
         }
@@ -22,7 +24,7 @@ async function main() {
         console.error("Error creating stream:", err);
     });
     const consumerOptions = {
-        stream: `in_network_rates-${process.env.SHARD_ID || 0}`,
+        stream: `in_network_rates-${shardId}`,
         offset: Offset.first(),
     }
     let count = 0

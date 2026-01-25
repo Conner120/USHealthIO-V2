@@ -3,6 +3,9 @@ import fs from "fs";
 import {$} from "bun";
 import {FileExtension, FileType, prisma} from "@repo/database";
 import {generateId, IDTYPE} from "@repo/id-gen";
+import process from "node:process";
+
+const shardId = (process.env.HOSTNAME ?? "").split("-").pop() || process.env.SHARD_ID || 0
 
 export async function getFile(url: string, jobId: string): Promise<{
     size: number;
@@ -100,7 +103,7 @@ export async function getFile(url: string, jobId: string): Promise<{
     for (let file of finalFiles) {
         console.log(`Parsing file run main /tmp/${id}/${file} in_network_rates`);
         // add parsing logic here as needed
-        await $`RABBITMQ_USER=${process.env.RABBITMQ_USER} RABBITMQ_PASSWORD=${process.env.RABBITMQ_PASSWORD} RABBITMQ_HOST=${process.env.RABBITMQ_HOST} ../../parser-tools/parser-rs/target/release/main /tmp/${id}/${file} in_network_rates ${jobId}`;
+        await $`RABBITMQ_USER=${process.env.RABBITMQ_USER} RABBITMQ_PASSWORD=${process.env.RABBITMQ_PASSWORD} RABBITMQ_HOST=${process.env.RABBITMQ_HOST} SHARD_ID=${shardId} ../../parser-tools/parser-rs/target/release/main /tmp/${id}/${file} in_network_rates ${jobId}`;
     }
 
     await $`rm -rf /tmp/${id}`;
