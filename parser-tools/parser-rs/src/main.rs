@@ -5,6 +5,9 @@ use rdkafka::producer::{DefaultProducerContext, FutureProducer, Producer, Thread
 use rdkafka::ClientConfig;
 use std::{env, fs};
 use struson::reader::JsonStreamReader;
+use dotenv::dotenv;
+
+
 
 pub fn create_producer() -> ThreadedProducer<DefaultProducerContext> {
     let producer: ThreadedProducer<DefaultProducerContext> = ClientConfig::new()
@@ -23,6 +26,7 @@ pub fn create_producer() -> ThreadedProducer<DefaultProducerContext> {
 }
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
     // create kafka producer with arc
     let producer = create_producer();
     // get file path as argument

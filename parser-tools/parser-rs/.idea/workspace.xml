@@ -12,14 +12,29 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="fix: add shard ID configuration via environment variable for producer stream">
+      <change beforePath="$PROJECT_DIR$/../../apps/admin/lib/kafka.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/admin/lib/kafka.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/filePrep.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/filePrep.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/index.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdsave/src/index.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/in_network/file_root.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/file_root.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CopilotPersistence">
+    <persistenceIdMap>
+      <entry key="_/Users/connerreitmeier/ushio-v2/parser-tools/parser-rs" value="2v0i1hXQBrtG9KKPn5DQqkoaRLV" />
+    </persistenceIdMap>
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="27" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
   <component name="FileTemplateManagerImpl">
@@ -38,6 +53,10 @@
   <component name="MacroExpansionManager">
     <option name="directoryName" value="9uoreHSP" />
   </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 2
 }</component>
@@ -54,10 +73,12 @@
     &quot;Cargo.Build `Run parser-rs`.executor&quot;: &quot;Run&quot;,
     &quot;Cargo.Run parser-rs.executor&quot;: &quot;Debug&quot;,
     &quot;Cargo.Run.executor&quot;: &quot;Debug&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.rust.reset.selective.auto.import&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;js.buildTools.gulp.gulp_package_dir&quot;: &quot;&quot;,
     &quot;last_opened_file_path&quot;: &quot;/Users/connerreitmeier/ushio-v2/parser-tools/parser-rs&quot;,
@@ -93,7 +114,7 @@
   <component name="RunManager" selected="Cargo.Run parser-rs">
     <configuration name="Run parser-rs" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="buildProfileId" value="dev" />
-      <option name="command" value="run -- /tmp/sa86klcs8g9678ysglfrdf4t/2026-01-01_cigna-health-life-insurance-company_localplus-with-ebh-plus-pathwell_in-network-rates.json in_network_rates sa86klcs8g9678ysglfrdf4t" />
+      <option name="command" value="run -- /tmp/s4he6gfxq683813opig5r2hz/2026-01-01_cigna-health-life-insurance-company_localplus-with-ebh-plus-pathwell_in-network-rates.json in_network_rates s4he6gfxq683813opig5r2hz" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <envs />
       <option name="emulateTerminal" value="true" />
@@ -170,6 +191,8 @@
       <workItem from="1764467373067" duration="28297000" />
       <workItem from="1768611481016" duration="595000" />
       <workItem from="1768619475743" duration="27373000" />
+      <workItem from="1769315881635" duration="260000" />
+      <workItem from="1769364687684" duration="691000" />
     </task>
     <task id="LOCAL-00001" summary="test">
       <option name="closed" value="true" />
@@ -226,7 +249,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/src/in_network/file_root.rs</url>
-          <line>363</line>
+          <line>367</line>
           <option name="timeStamp" value="27" />
         </line-breakpoint>
       </breakpoints>
@@ -235,5 +258,13 @@
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
     <select />
+  </component>
+  <component name="github-copilot-workspace">
+    <instructionFileLocations>
+      <option value=".github/instructions" />
+    </instructionFileLocations>
+    <promptFileLocations>
+      <option value=".github/prompts" />
+    </promptFileLocations>
   </component>
 </project>

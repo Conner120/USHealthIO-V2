@@ -1,9 +1,9 @@
-import { connect, Offset } from "rabbitmq-stream-js-client"
-import type { Message } from "rabbitmq-stream-js-client/dist/publisher"
-import { provider } from "./bundle";
-import * as console from "node:console";
-import * as process from "node:process";
+import {connect, Offset} from "rabbitmq-stream-js-client"
+import type {Message} from "rabbitmq-stream-js-client/dist/publisher"
+import {provider} from "./bundle";
 import ProtoProviderNegotiationKafkaMessage = provider.ProtoProviderNegotiationKafkaMessage;
+
+const GB_BYTES = 1024 * 1024 * 1024;
 
 async function main() {
     const client = await connect({
@@ -13,7 +13,14 @@ async function main() {
         password: process.env.RABBITMQ_PASSWORD || "guest",
         vhost: "/",
     })
-
+    client.createStream({
+        stream: `in_network_rates-${process.env.SHARD_ID || 0}`,
+        arguments: {
+            'max-length-bytes': GB_BYTES * 5
+        }
+    }).catch((err) => {
+        console.error("Error creating stream:", err);
+    });
     const consumerOptions = {
         stream: `in_network_rates-${process.env.SHARD_ID || 0}`,
         offset: Offset.first(),
@@ -28,10 +35,6 @@ async function main() {
             console.log(`Processed ${count} messages in ${duration} seconds (${(count / duration).toFixed(2)} msg/sec)`);
         }
     })
-}
-
-async function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 main();

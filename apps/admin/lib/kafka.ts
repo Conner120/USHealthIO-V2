@@ -1,8 +1,9 @@
 "use server"
-import { prisma } from "@repo/database";
-import { generateId, IDTYPE } from "@repo/id-gen";
-import { withAuth } from "@workos-inc/authkit-nextjs";
-import { Connection } from 'rabbitmq-client'
+import {prisma} from "@repo/database";
+import {generateId, IDTYPE} from "@repo/id-gen";
+import {withAuth} from "@workos-inc/authkit-nextjs";
+import {Connection} from 'rabbitmq-client'
+
 console.log(process.env);
 // Initialize:
 const rabbit = new Connection(`amqp://${process.env.RABBITMQ_USER || "guest"}:${process.env.RABBITMQ_PASSWORD || "guest"}@${process.env.RABBITMQ_HOST || "localhost"}:5672`)
@@ -18,10 +19,11 @@ const pub = rabbit.createPublisher({
     // Enable retries
     maxAttempts: 2,
     // Optionally ensure the existence of an exchange before we use it
-    exchanges: [{ exchange: 'jobs', type: 'direct' }],
+    exchanges: [{exchange: 'jobs', type: 'direct'}],
 })
+
 export async function SendTICJobTrigger(id: string, jobId: string) {
-    const { user } = await withAuth({ ensureSignedIn: true });
+    const {user} = await withAuth({ensureSignedIn: true});
     const importSource = await prisma.insuranceScanSource.findFirst(
         {
             where: {

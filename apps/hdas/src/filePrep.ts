@@ -1,8 +1,9 @@
-import { createId } from "@paralleldrive/cuid2";
+import {createId} from "@paralleldrive/cuid2";
 import fs from "fs";
-import { $, spawn, spawnSync } from "bun";
-import { FileExtension, FileType, prisma } from "@repo/database";
-import { generateId, IDTYPE } from "@repo/id-gen";
+import {$} from "bun";
+import {FileExtension, FileType, prisma} from "@repo/database";
+import {generateId, IDTYPE} from "@repo/id-gen";
+
 export async function getFile(url: string, jobId: string): Promise<{
     size: number;
     success: boolean;
@@ -19,7 +20,7 @@ export async function getFile(url: string, jobId: string): Promise<{
     });
     let id = createId();
     console.log(`Downloading file from URL: ${url} to /tmp/${id} w/t ${`curl -O --output-dir /tmp/${id}/ "${url}"`}`);
-    fs.mkdirSync(`/tmp/${id}`, { recursive: true });
+    fs.mkdirSync(`/tmp/${id}`, {recursive: true});
     let t = await $`curl -O --output-dir /tmp/${id}/ "${url}"`;
     if (t.exitCode !== 0) {
         console.error(`Failed to download file from ${url}. Exit code: ${t.exitCode}`);
@@ -99,7 +100,7 @@ export async function getFile(url: string, jobId: string): Promise<{
     for (let file of finalFiles) {
         console.log(`Parsing file run main /tmp/${id}/${file} in_network_rates`);
         // add parsing logic here as needed
-        await $`../../parser-tools/parser-rs/target/release/main /tmp/${id}/${file} in_network_rates ${jobId}`;
+        await $`RABBITMQ_USER=${process.env.RABBITMQ_USER} RABBITMQ_PASSWORD=${process.env.RABBITMQ_PASSWORD} RABBITMQ_HOST=${process.env.RABBITMQ_HOST} ../../parser-tools/parser-rs/target/release/main /tmp/${id}/${file} in_network_rates ${jobId}`;
     }
 
     await $`rm -rf /tmp/${id}`;
@@ -108,6 +109,7 @@ export async function getFile(url: string, jobId: string): Promise<{
         size: totalSize, success: true
     }
 }
+
 function getFileExtensionFromUrlWithQuery(extension: string): FileExtension {
     switch (extension.toLowerCase()) {
         case 'json':

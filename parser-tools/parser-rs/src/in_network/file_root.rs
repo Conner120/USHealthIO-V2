@@ -67,6 +67,10 @@ pub async fn in_network_file_root(
     let shard_id = std::env::var("SHARD_ID").unwrap_or_else(|_| "0".to_string());
     let rabbitmq_password =
         std::env::var("RABBITMQ_PASSWORD").unwrap_or_else(|_| "guest".to_string());
+    println!("creating rabbitmq environment");
+    println!("rabbitmq_host: {}", rabbitmq_host);
+    println!("rabbitmq_username: {}", rabbitmq_username);
+    println!("shard_id: {}", shard_id);
     let environment = Environment::builder()
         .host(rabbitmq_host.as_str())
         .port(5552)
