@@ -6,6 +6,7 @@ import {generateId, IDTYPE} from "@repo/id-gen";
 import process from "node:process";
 
 const shardId = (process.env.HOSTNAME ?? "").split("-").pop() || process.env.SHARD_ID || 0
+console.log(process.env)
 
 export async function getFile(url: string, jobId: string): Promise<{
     size: number;
