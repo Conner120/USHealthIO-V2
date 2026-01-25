@@ -2,6 +2,7 @@ import {connect, Offset} from "rabbitmq-stream-js-client"
 import type {Message} from "rabbitmq-stream-js-client/dist/publisher"
 import {provider} from "./bundle";
 import * as process from "node:process";
+import {redis} from "bun";
 import ProtoProviderNegotiationKafkaMessage = provider.ProtoProviderNegotiationKafkaMessage;
 
 const GB_BYTES = 1024 * 1024 * 1024;
@@ -23,9 +24,16 @@ async function main() {
     }).catch((err) => {
         console.error("Error creating stream:", err);
     });
+    const startOffset = await redis.hget(`in_network_rates_${shardId}`, "offset");
     const consumerOptions = {
         stream: `in_network_rates-${shardId}`,
-        offset: Offset.first(),
+        offset: Offset.first()
+    }
+    if (startOffset) {
+        consumerOptions.offset = Offset.offset(BigInt(startOffset));
+        console.log(`Resuming from offset ${startOffset}`);
+    } else {
+        console.log(`Starting from beginning`);
     }
     let count = 0
     let start = Date.now()
@@ -35,6 +43,8 @@ async function main() {
         if (count % 1000 === 0) {
             let duration = (Date.now() - start) / 1000;
             console.log(`Processed ${count} messages in ${duration} seconds (${(count / duration).toFixed(2)} msg/sec)`);
+            if (message.offset)
+                await redis.hset(`in_network_rates_${shardId}`, "offset", message.offset?.toString())
         }
     })
 }
