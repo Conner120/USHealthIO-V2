@@ -14,6 +14,6 @@ RUN apt-get update -y && apt-get install -y openssl curl gzip unzip coreutils
 RUN bun add --global turbo
 RUN bun install
 RUN cd packages/database && bun generate
-WORKDIR /app/apps/hdas
+WORKDIR /app/apps/hdsave
 RUN bun install
 CMD [ "bun", "start" ]
