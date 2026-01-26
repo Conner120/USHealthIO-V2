@@ -22,7 +22,6 @@ async function main() {
             'max-length-bytes': GB_BYTES * 5
         }
     }).catch((err) => {
-        console.error("Error creating stream:", err);
     });
     const startOffset = await redis.hget(`in_network_rates_${shardId}`, "offset");
     const consumerOptions = {
@@ -31,9 +30,9 @@ async function main() {
     }
     if (startOffset) {
         consumerOptions.offset = Offset.offset(BigInt(startOffset));
-        console.log(`Resuming from offset ${startOffset}`);
+        console.log(`Node: ${shardId} Resuming from offset ${startOffset}`);
     } else {
-        console.log(`Starting from beginning`);
+        console.log(`Node: ${shardId} Starting from beginning`);
     }
     let count = 0
     let start = Date.now()
@@ -42,7 +41,7 @@ async function main() {
         let data = ProtoProviderNegotiationKafkaMessage.decode(message.content);
         if (count % 1000 === 0) {
             let duration = (Date.now() - start) / 1000;
-            console.log(`Processed ${count} messages in ${duration} seconds (${(count / duration).toFixed(2)} msg/sec)`);
+            console.log(`Node: ${shardId} Processed ${count} messages in ${duration} seconds (${(count / duration).toFixed(2)} msg/sec)`);
             if (message.offset)
                 await redis.hset(`in_network_rates_${shardId}`, "offset", message.offset?.toString())
         }
