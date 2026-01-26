@@ -71,14 +71,31 @@ pub async fn in_network_file_root(
     println!("rabbitmq_host: {}", rabbitmq_host);
     println!("rabbitmq_username: {}", rabbitmq_username);
     println!("shard_id: {}", shard_id);
-    let environment = Environment::builder()
+    let mut environment = Environment::builder()
         .host(rabbitmq_host.as_str())
         .port(5552)
         .username(rabbitmq_username.as_str())
         .password(rabbitmq_password.as_str())
-        .build()
-        .await
-        .unwrap();
+        .build().await;
+    // if error loop and retry 5 time then fail
+    let mut retry_count = 5;
+    loop {
+        environment = Environment::builder()
+            .host(rabbitmq_host.as_str())
+            .port(5552)
+            .username(rabbitmq_username.as_str())
+            .password(rabbitmq_password.as_str())
+            .build().await;
+        if environment.is_ok() {
+            break;
+        }
+        retry_count -= 1;
+        if retry_count == 0 {
+            panic!("Failed to create RabbitMQ environment after 5 retries");
+        }
+    }
+    let environment = environment.unwrap();
+
 
     println!("creating batch_send stream");
     // create stream if not exists
