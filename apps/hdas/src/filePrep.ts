@@ -100,14 +100,26 @@ export async function getFile(url: string, jobId: string): Promise<{
             }
         });
     }
+    let errors: string[] = []
     // parse 
     for (let file of finalFiles) {
         console.log(`Parsing file run main /tmp/${id}/${file} in_network_rates`);
         // add parsing logic here as needed
-        await $`RABBITMQ_USER=${process.env.RABBITMQ_USER} RABBITMQ_PASSWORD=${process.env.RABBITMQ_PASSWORD} RABBITMQ_HOST=${process.env.RABBITMQ_HOST} SHARD_ID=${shardId} ../../parser-tools/parser-rs/target/release/main /tmp/${id}/${file} in_network_rates ${jobId}`;
+        let t = await $`RABBITMQ_USER=${process.env.RABBITMQ_USER} RABBITMQ_PASSWORD=${process.env.RABBITMQ_PASSWORD} RABBITMQ_HOST=${process.env.RABBITMQ_HOST} SHARD_ID=${shardId} ../../parser-tools/parser-rs/target/release/main /tmp/${id}/${file} in_network_rates ${jobId}`.catch(async (error) => {
+            return error.message;
+        })
+        if (!t) {
+            errors.push(t);
+            console.error(`Failed to parse file: ${file}. Error: ${t}`);
+        }
     }
 
     await $`rm -rf /tmp/${id}`;
+    if (errors.length > 0) {
+        return {
+            size: 0, success: false, message: `Failed to parse ${errors} files.`
+        }
+    }
     console.log(`Total size of downloaded files: ${totalSize} bytes`);
     return {
         size: totalSize, success: true
