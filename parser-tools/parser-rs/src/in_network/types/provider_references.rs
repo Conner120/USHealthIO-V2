@@ -7,6 +7,7 @@ use reqwest::Client;
 use serde::Serialize;
 use std::fs::File;
 use struson::reader::{JsonReader, JsonStreamReader};
+use crate::in_network::debug::{debug_begin_object, debug_end_object, debug_begin_array, debug_end_array};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProviderReferenceObject {
@@ -25,6 +26,7 @@ pub async fn provider_reference_object(
         provider_groups: vec![],
         location: None,
     };
+    debug_begin_object("$.provider_references[]");
     reader.begin_object().expect("TODO: panic message");
     loop {
         if !reader.has_next().unwrap() {
@@ -36,6 +38,7 @@ pub async fn provider_reference_object(
                 data.provider_group_id = reader.next_number().unwrap().unwrap();
             }
             "network_name" => {
+                debug_begin_array("$.provider_references[].network_name");
                 reader.begin_array().unwrap();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -45,8 +48,10 @@ pub async fn provider_reference_object(
                     let name = reader.next_string().unwrap();
                     data.network_name.push(name);
                 }
+                reader.end_array().unwrap();
             }
             "provider_groups" => {
+                debug_begin_array("$.provider_references[].provider_groups");
                 reader.begin_array().unwrap();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -56,6 +61,7 @@ pub async fn provider_reference_object(
                     let provider_object = providers_object(reader).unwrap();
                     data.provider_groups.push(provider_object);
                 }
+                debug_end_array("$.provider_references[].provider_groups");
                 reader.end_array();
             }
             "location" => {
@@ -67,6 +73,7 @@ pub async fn provider_reference_object(
             }
         }
     }
+    debug_end_object("$.provider_references[]");
     reader.end_object().expect("TODO: panic message");
     Ok(data)
 }
@@ -140,6 +147,7 @@ async fn provider_reference_object_from_bytes(
         provider_groups: vec![],
         location: None,
     };
+    debug_begin_object("$.provider_references[] (raw)");
     reader.begin_object().expect("TODO: panic message");
     loop {
         if !reader.has_next().unwrap() {
@@ -151,6 +159,7 @@ async fn provider_reference_object_from_bytes(
                 data.provider_group_id = reader.next_number().unwrap().unwrap();
             }
             "network_name" => {
+                debug_begin_array("$.provider_references[].network_name (raw)");
                 reader.begin_array().unwrap();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -162,6 +171,7 @@ async fn provider_reference_object_from_bytes(
                 }
             }
             "provider_groups" => {
+                debug_begin_array("$.provider_references[].provider_groups (raw)");
                 reader.begin_array().unwrap();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -171,6 +181,7 @@ async fn provider_reference_object_from_bytes(
                     let provider_object = providers_object_raw(reader).unwrap();
                     data.provider_groups.push(provider_object);
                 }
+                debug_end_array("$.provider_references[].provider_groups (raw)");
                 reader.end_array();
             }
             "location" => {
@@ -182,6 +193,7 @@ async fn provider_reference_object_from_bytes(
             }
         }
     }
+    debug_end_object("$.provider_references[] (raw)");
     reader.end_object().expect("TODO: panic message");
     Ok(data)
 }

@@ -1,12 +1,11 @@
 import axios from "axios";
-import fs from "fs";
 import { FileExtension, FileType, InsurancePlanIdType, InsurancePlanMarketType, Prisma, prisma } from "@repo/database";
 import type { TaskPayload } from "./taskRoot";
 import { generateId, IDTYPE } from "@repo/id-gen";
 import { makePlanHash } from "@repo/object-hash";
 import { pub } from "..";
-export async function importCignaData(data: TaskPayload, heartbeat?: () => Promise<void>) {
-    console.log("Updating job status to DOWNLOADING", data);
+
+export async function importUnitedHealthcareData(data: TaskPayload, heartbeat?: () => Promise<void>) {
     const importSource = await prisma.insuranceScanSource.findUnique({
         where: {
             id: data.payload.id
@@ -21,21 +20,24 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             statusTime: new Date(),
         }
     });
-    if (!data.payload.options || !data.payload.options['cigna_page_url']) {
-        throw new Error("Cigna page URL is missing in options");
+    if (!data.payload.options || !data.payload.options['united_blob_page_url']) {
+        throw new Error("United Healthcare blob page URL is missing in options");
     }
-    const blobs = await axios.get(data.payload.options['cigna_page_url']);
-    if (blobs.status !== 200) {
-        throw new Error(`Failed to fetch Cigna data, status code: ${blobs.status}`);
+    const indexResponse = await axios.get(data.payload.options['united_blob_page_url']);
+    if (indexResponse.status !== 200) {
+        throw new Error(`Failed to fetch United Healthcare data, status code: ${indexResponse.status}`);
     }
-    if (blobs.data.mrfs.length === 0) {
-        console.log("No MRFs found in the Cigna data.");
-        return;
-    }
-    if (blobs.data.mrfs.length !== 1) {
-        console.warn(`Expected 1 MRF, but found ${blobs.data.mrfs.length}. Proceeding with the first one.`);
-        return;
-    }
+    const indexData: {
+        name: string;
+        downloadUrl: string;
+        size: number;
+    }[] = indexResponse.data.blobs.filter((blob: any) => blob.name.endsWith('_index.json')).map((blob: any) => ({
+        name: blob.name,
+        downloadUrl: blob.downloadUrl,
+        size: blob.size,
+    }));
+    console.log(`Fetched index data with ${indexData.length} entries`);
+
     await prisma.insuranceScanJob.update({
         where: {
             id: data.id
@@ -43,44 +45,11 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
         data: {
             status: 'PARSING',
             statusTime: new Date(),
+            fileUrl: data.payload.options['united_blob_page_url'],
         }
     });
-    // Process the first MRF (Medical Record File)
-    const mrf = blobs.data.mrfs[0];
-    // Here you would add logic to store the MRF in your database or further process it
-    if (mrf.files.length !== 1) {
-        console.warn(`Expected 1 file in MRF, but found ${mrf.files.length}.`);
-        throw new Error("MRF does not contain exactly one file.");
-    }
-    const file = mrf.files[0].url;
-    const indexFile = await axios.get(file);
-    const goodPlans = indexFile.data.reporting_structure.flatMap((rs: any) => rs.reporting_plans).reduce((acc: any[], plan: any) => {
-        if (!acc.find(p => p.plan_name === plan.plan_name) && plan.plan_id) {
-            acc.push(plan);
-        }
-        return acc;
-    }, []);
-    if (goodPlans.length === 0) {
-        console.error("No reporting plans found in the Cigna MRF index file.");
-        throw new Error("No reporting plans found in the Cigna MRF index file.");
-    }
-    // write good plans to disk
-    const workDir = process.env.WORK_DIR || "/tmp";
-    const goodPlansFilePath = `${workDir}/good_plans_${data.id}.json`;
-    fs.writeFileSync(goodPlansFilePath, JSON.stringify(goodPlans, null, 2));
-    console.log(`Extracted ${goodPlans.length} unique plans from the Cigna MRF index file.`);
-    await prisma.insuranceScanJob.update({
-        where: {
-            id: data.id
-        },
-        data: {
-            fileUrl: file,
-            fileExtension: getFileExtensionFromUrlWithQuery(file),
-        }
-    });
-    if (indexFile.status !== 200) {
-        throw new Error(`Failed to fetch Cigna MRF file, status code: ${indexFile.status}`);
-    }
+
+    // Collect all file URLs across all blobs, deduplicating by location
     const filesToImport: {
         reportingPlans: string[],
         file: {
@@ -89,62 +58,116 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
         }
     }[] = [];
     let filesToImportIndex: { [key: string]: number } = {};
-    for (const fileReport of indexFile.data.reporting_structure) {
-        let plans: string[] = [];
-        //parse allowed amount files
-        if (fileReport.allowed_amount_file) {
-            if (fileReport.allowed_amount_file.location.includes('cigna-health-life-insurance-company_empty_allowed-amounts.json')) {
+
+    // Collect all unique plans across all blobs for fallback lookups
+    const allGoodPlans: any[] = [];
+
+    // Download each blob's index file and extract reporting structures
+    const blobConcurrency = 50;
+    for (let blobIdx = 0; blobIdx < indexData.length; blobIdx += blobConcurrency) {
+        const blobChunk = indexData.slice(blobIdx, blobIdx + blobConcurrency);
+        const blobResults = await Promise.allSettled(
+            blobChunk.map(blob => axios.get(blob.downloadUrl))
+        );
+
+        for (let i = 0; i < blobResults.length; i++) {
+            const result = blobResults[i]!;
+            const blob = blobChunk[i]!;
+            if (result.status === 'rejected') {
+                console.error(`Failed to fetch blob "${blob.name}":`, result.reason);
                 continue;
             }
-            plans = await getAndUpsertPlan(fileReport.reporting_plans, importSource?.insuranceCompanyId || "", goodPlans);
-            let locationSimple = fileReport.allowed_amount_file.location.split('?')[0];
-            let index = filesToImportIndex[locationSimple];
-            if (index) {
-                filesToImport[index]!.reportingPlans.push(...plans);
-            } else {
-                filesToImport.push({
-                    reportingPlans: plans,
-                    file: {
-                        url: fileReport.allowed_amount_file.location,
-                        type: "allowed_amount"
+            const blobData = result.value.data;
+            if (!blobData.reporting_structure || blobData.reporting_structure.length === 0) {
+                continue;
+            }
+
+            // Collect unique plans from this blob for fallback
+            const blobGoodPlans = blobData.reporting_structure
+                .flatMap((rs: any) => rs.reporting_plans)
+                .reduce((acc: any[], plan: any) => {
+                    if (!acc.find((p: any) => p.plan_name === plan.plan_name) && plan.plan_id) {
+                        acc.push(plan);
                     }
-                });
-                filesToImportIndex[locationSimple] = filesToImport.length - 1;
-            }
-        }
-        if (fileReport.in_network_files) {
-            if (plans.length === 0) {
-                plans = await getAndUpsertPlan(fileReport.reporting_plans, importSource?.insuranceCompanyId || "", goodPlans);
-            }
-            for (const inNetworkFile of fileReport.in_network_files) {
-                let locationSimple = inNetworkFile.location.split('?')[0];
-                let index = filesToImportIndex[locationSimple]
-                if (index) {
-                    filesToImport[index]!.reportingPlans.push(...plans);
-                } else {
-                    filesToImport.push({
-                        reportingPlans: plans,
-                        file: {
-                            url: inNetworkFile.location,
-                            type: "in_network"
-                        }
-                    });
-                    filesToImportIndex[locationSimple] = filesToImport.length - 1;
+                    return acc;
+                }, []);
+            for (const plan of blobGoodPlans) {
+                if (!allGoodPlans.find((p: any) => p.plan_name === plan.plan_name)) {
+                    allGoodPlans.push(plan);
                 }
             }
+
+            for (const fileReport of blobData.reporting_structure) {
+                let plans: string[] = [];
+
+                if (fileReport.allowed_amount_file) {
+                    plans = await getAndUpsertPlan(fileReport.reporting_plans, importSource?.insuranceCompanyId || "", allGoodPlans);
+                    let locationSimple = fileReport.allowed_amount_file.location.split('?')[0];
+                    let index = filesToImportIndex[locationSimple];
+                    if (index !== undefined) {
+                        filesToImport[index]!.reportingPlans.push(...plans);
+                    } else {
+                        filesToImport.push({
+                            reportingPlans: plans,
+                            file: {
+                                url: fileReport.allowed_amount_file.location,
+                                type: "allowed_amount"
+                            }
+                        });
+                        filesToImportIndex[locationSimple] = filesToImport.length - 1;
+                    }
+                }
+
+                if (fileReport.in_network_files) {
+                    if (plans.length === 0) {
+                        plans = await getAndUpsertPlan(fileReport.reporting_plans, importSource?.insuranceCompanyId || "", allGoodPlans);
+                    }
+                    for (const inNetworkFile of fileReport.in_network_files) {
+                        let locationSimple = inNetworkFile.location.split('?')[0];
+                        let index = filesToImportIndex[locationSimple];
+                        if (index !== undefined) {
+                            filesToImport[index]!.reportingPlans.push(...plans);
+                        } else {
+                            filesToImport.push({
+                                reportingPlans: plans,
+                                file: {
+                                    url: inNetworkFile.location,
+                                    type: "in_network"
+                                }
+                            });
+                            filesToImportIndex[locationSimple] = filesToImport.length - 1;
+                        }
+                    }
+                }
+            }
+
         }
+        console.log(`Processed blob chunk ${blobIdx + blobChunk.length}/${indexData.length}. Total unique files to import so far: ${filesToImport.length}.`);
+
+        if (heartbeat) await heartbeat();
     }
-    // split into chunks of 100
-    const chunkSize = 10;
-    for (let i = 0; i < filesToImport.filter(f => f.file.type === "in_network").length; i += chunkSize) {
-        const chunk = filesToImport.filter(f => f.file.type === "in_network").slice(i, i + chunkSize);
+
+    console.log(`Extracted ${allGoodPlans.length} unique plans across all blobs.`);
+    console.log(`Found ${filesToImport.length} unique files to import (${filesToImport.filter(f => f.file.type === "in_network").length} in-network, ${filesToImport.filter(f => f.file.type === "allowed_amount").length} allowed-amount).`);
+
+    // Deduplicate plan IDs within each file entry
+    for (const entry of filesToImport) {
+        entry.reportingPlans = [...new Set(entry.reportingPlans)];
+    }
+
+    // Dispatch jobs in chunks
+    const chunkSize = 100;
+
+    const inNetworkFiles = filesToImport.filter(f => f.file.type === "in_network");
+    for (let i = 0; i < inNetworkFiles.length; i += chunkSize) {
+        const chunk = inNetworkFiles.slice(i, i + chunkSize);
         const chunkDatabase: Prisma.InsuranceScanJobCreateManyInput[] = chunk.map(fileToImport => ({
             id: generateId(IDTYPE.INSURANCE_SCAN_JOB),
             insuranceScanSourceId: data.payload.id,
             status: 'PENDING',
             statusTime: new Date(),
             fileUrl: fileToImport.file.url,
-            insurancePlanIds: filesToImport.find(f => f.file.url === fileToImport.file.url)?.reportingPlans || [],
+            insurancePlanIds: fileToImport.reportingPlans,
             fileExtension: getFileExtensionFromUrlWithQuery(fileToImport.file.url),
             fileType: 'IN_NETWORK' as FileType,
             parentJobId: data.id,
@@ -163,17 +186,19 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
                 id: fileToImport.id,
                 type: 'in-network-file',
                 payload: {
-                    sourceType: 'CIGNA_INDEX_API',
+                    sourceType: 'UNITED_HEATHCARE_BLOB_API',
                     url: fileToImport.fileUrl!,
                     insuranceCompanyId: importSource?.insuranceCompanyId || null,
                     insuranceImportSourceId: importSource?.id || null,
                 }
             })
         ));
-        console.log(`Dispatched in-network-file chunk with ${chunk.length} files.`);
+        console.log(`Dispatched in-network-file chunk with ${chunk.length} files (${i + chunk.length}/${inNetworkFiles.length}).`);
     }
-    for (let i = 0; i < filesToImport.filter(f => f.file.type === "allowed_amount").length; i += chunkSize) {
-        const chunk = filesToImport.filter(f => f.file.type === "allowed_amount").slice(i, i + chunkSize);
+
+    const allowedAmountFiles = filesToImport.filter(f => f.file.type === "allowed_amount");
+    for (let i = 0; i < allowedAmountFiles.length; i += chunkSize) {
+        const chunk = allowedAmountFiles.slice(i, i + chunkSize);
         const chunkDatabase: Prisma.InsuranceScanJobCreateManyInput[] = chunk.map(fileToImport => ({
             id: generateId(IDTYPE.INSURANCE_SCAN_JOB),
             insuranceScanSourceId: data.payload.id,
@@ -182,7 +207,7 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             fileUrl: fileToImport.file.url,
             fileExtension: getFileExtensionFromUrlWithQuery(fileToImport.file.url),
             fileType: 'ALLOWED_AMOUNT' as FileType,
-            insurancePlanIds: filesToImport.find(f => f.file.url === fileToImport.file.url)?.reportingPlans || [],
+            insurancePlanIds: fileToImport.reportingPlans,
             parentJobId: data.id,
             createdBy: data.payload.createdBy,
             updatedBy: data.payload.createdBy,
@@ -199,15 +224,16 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
                 id: fileToImport.id,
                 type: 'allowed-amount-file',
                 payload: {
-                    sourceType: 'CIGNA_INDEX_API',
+                    sourceType: 'UNITED_HEATHCARE_BLOB_API',
                     url: fileToImport.fileUrl!,
                     insuranceCompanyId: importSource?.insuranceCompanyId || null,
                     insuranceImportSourceId: importSource?.id || null,
                 }
             })
         ));
-        console.log(`Dispatched allowed-amount chunk with ${chunk.length} files.`);
+        console.log(`Dispatched allowed-amount chunk with ${chunk.length} files (${i + chunk.length}/${allowedAmountFiles.length}).`);
     }
+
     await prisma.insuranceScanJob.update({
         where: {
             id: data.id
@@ -218,7 +244,7 @@ export async function importCignaData(data: TaskPayload, heartbeat?: () => Promi
             statusTime: new Date(),
         }
     });
-    console.log("All files dispatched for import.");
+    console.log("All United Healthcare files dispatched for import.");
 }
 
 async function getAndUpsertPlan(planData: {
@@ -288,7 +314,6 @@ async function getAndUpsertPlan(planData: {
     if (preparedPlanData.length === 0) {
         return [];
     }
-    console.log("Prepared plan data for upsert:", preparedPlanData.map(p => p.insurancePlanHash));
     const existingPlans = await prisma.insurancePlan.findMany({
         where: {
             insurancePlanHash: {
@@ -320,8 +345,8 @@ async function getAndUpsertPlan(planData: {
         planFirstSeen: new Date(),
         planLastSeen: new Date(),
         insurancePlanHash: p.insurancePlanHash,
-        createdBy: 'HDAS_CIGNA_IMPORT',
-        updatedBy: 'HDAS_CIGNA_IMPORT',
+        createdBy: 'HDAS_UHC_IMPORT',
+        updatedBy: 'HDAS_UHC_IMPORT',
     }));
     await prisma.insurancePlan.createMany({
         data: newPlansData
@@ -330,7 +355,6 @@ async function getAndUpsertPlan(planData: {
         ...existingPlans.map(p => p.id),
         ...newPlansData.map(p => p.id)
     ]
-
 }
 
 function getFileExtensionFromUrlWithQuery(url: string): FileExtension {

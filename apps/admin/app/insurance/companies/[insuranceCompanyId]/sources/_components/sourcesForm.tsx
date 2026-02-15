@@ -34,7 +34,21 @@ export default function SourcesForm(props: { currentValue: InsuranceScanSource }
                     <CardDescription>{props.currentValue.notes}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-
+                    <div className="text-sm text-muted-foreground">
+                        <span className="font-medium">Source Type:</span> {props.currentValue.sourceType}
+                    </div>
+                    {props.currentValue.sourceType === 'CIGNA_INDEX_API' && props.currentValue.options && (
+                        <div className="text-sm text-muted-foreground break-all">
+                            <span className="font-medium">Cigna Page URL:</span>{' '}
+                            {(props.currentValue.options as Record<string, string>)['cigna_page_url'] ?? 'Not configured'}
+                        </div>
+                    )}
+                    {props.currentValue.sourceType === 'UNITED_HEATHCARE_BLOB_API' && props.currentValue.options && (
+                        <div className="text-sm text-muted-foreground break-all">
+                            <span className="font-medium">UHC Blob URL:</span>{' '}
+                            {(props.currentValue.options as Record<string, string>)['united_blob_page_url'] ?? 'Not configured'}
+                        </div>
+                    )}
                 </CardContent>
                 {isDirty && (
                     <CardFooter>

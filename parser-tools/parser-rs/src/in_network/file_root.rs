@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use struson::json_path;
 use struson::reader::{JsonReader, JsonStreamReader};
+use crate::in_network::debug::{debug_begin_object, debug_end_object, debug_begin_array, debug_end_array};
 
 #[derive(Debug)]
 pub struct InNetworkFileError {
@@ -59,6 +60,7 @@ pub async fn in_network_file_root(
         in_network: Vec::new(),
         version: "".to_string(),
     };
+    debug_begin_object("$");
     reader.begin_object();
     let mut counter: usize = 0;
     let mut counter_messages: usize = 0;
@@ -178,6 +180,7 @@ pub async fn in_network_file_root(
                             .insert(provider_reference.provider_group_id, proto_provider_message);
                     }
                     data.provider_references = vec![];
+                    debug_begin_array("$.in_network");
                     reader.begin_array().unwrap();
                     let mut records = vec![];
                     println!("Processing in_network objects...");
@@ -239,6 +242,7 @@ pub async fn in_network_file_root(
                             offset = counter;
                         }
                     }
+                    debug_end_array("$.in_network");
                     reader.end_array();
                 }
             }
@@ -277,6 +281,7 @@ pub async fn in_network_file_root(
             "provider_references" => {
                 counter = 0;
                 start_time = std::time::Instant::now();
+                debug_begin_array("$.provider_references");
                 reader.begin_array().unwrap();
                 let mut provider_refs = vec![];
                 loop {
@@ -301,6 +306,7 @@ pub async fn in_network_file_root(
                         );
                     }
                 }
+                debug_end_array("$.provider_references");
                 reader.end_array();
 
                 // Process provider references in parallel chunks of 500, including fetching location data
@@ -371,6 +377,7 @@ pub async fn in_network_file_root(
             }
         }
     }
+    debug_end_object("$");
     reader.end_object();
     // print the total time and result size in memory
     println!(

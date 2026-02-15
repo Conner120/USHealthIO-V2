@@ -207,12 +207,16 @@ model procedure_code {
   description String              @db.VarChar(1000)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
+
+  @@unique([code, typeId], name: "uq_code_typeId")
 }
 
 model provider_group {
   id                     String                    @id @db.VarChar(50)
   groupName              String                    @db.VarChar(200)
   insuranceCarrierId     String                    @db.VarChar(50)
+  tinValue               String                    @db.VarChar(20)
+  tinType                String                    @db.VarChar(10)
   createdAt              DateTime                  @default(now())
   createdBy              String                    @db.VarChar(50)
   updatedAt              DateTime                  @updatedAt
@@ -220,6 +224,8 @@ model provider_group {
   archivedBy             String?                   @db.VarChar(50)
   archivedAt             DateTime?
   providerGroupProviders provider_group_provider[]
+
+  @@unique([tinValue, insuranceCarrierId], name: "uq_tin_carrier")
 }
 
 model provider_group_provider {
@@ -237,8 +243,8 @@ model provider_group_provider {
 model provider {
   id                     String                    @id @db.VarChar(50)
   providerNPI            String                    @unique @db.VarChar(20)
-  firstName              String                    @db.VarChar(250)
-  lastName               String                    @db.VarChar(250)
+  firstName              String?                   @db.VarChar(250)
+  lastName               String?                   @db.VarChar(250)
   createdAt              DateTime                  @default(now())
   createdBy              String                    @db.VarChar(50)
   updatedAt              DateTime                  @updatedAt

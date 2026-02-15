@@ -10,6 +10,7 @@ use serde::Serialize;
 use std::fs::File;
 use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
 use struson::reader::{JsonReader, JsonStreamReader};
+use crate::in_network::debug::{debug_begin_object, debug_end_object, debug_begin_array, debug_end_array};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProvidersObject {
@@ -28,6 +29,7 @@ pub fn providers_object(
             business_name: None,
         },
     };
+    debug_begin_object("$.provider_references[].provider_groups[]");
     reader.begin_object().expect("TODO: panic message");
     loop {
         if !reader.has_next().unwrap() {
@@ -36,6 +38,7 @@ pub fn providers_object(
         let member_name = reader.next_name().unwrap();
         match member_name {
             "npi" => {
+                debug_begin_array("$.provider_references[].provider_groups[].npi");
                 reader.begin_array().unwrap();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -45,6 +48,7 @@ pub fn providers_object(
                     let value = reader.next_number().unwrap().unwrap();
                     data.npi.push(value);
                 }
+                debug_end_array("$.provider_references[].provider_groups[].npi");
                 reader.end_array();
             }
             "tins" => {
@@ -55,6 +59,7 @@ pub fn providers_object(
             }
         }
     }
+    debug_end_object("$.provider_references[].provider_groups[]");
     reader.end_object().expect("TODO: panic message");
     Ok(data)
 }
@@ -70,6 +75,7 @@ pub fn providers_object_raw(
             business_name: None,
         },
     };
+    debug_begin_object("$.provider_references[].provider_groups[] (raw)");
     reader.begin_object().expect("TODO: panic message");
     loop {
         if !reader.has_next().unwrap() {
@@ -78,6 +84,7 @@ pub fn providers_object_raw(
         let member_name = reader.next_name().unwrap();
         match member_name {
             "npi" => {
+                debug_begin_array("$.provider_references[].provider_groups[].npi (raw)");
                 reader.begin_array().unwrap();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -87,6 +94,7 @@ pub fn providers_object_raw(
                     let value = reader.next_number().unwrap().unwrap();
                     data.npi.push(value);
                 }
+                debug_end_array("$.provider_references[].provider_groups[].npi (raw)");
                 reader.end_array();
             }
             "tins" => {
@@ -100,6 +108,7 @@ pub fn providers_object_raw(
             }
         }
     }
+    debug_end_object("$.provider_references[].provider_groups[] (raw)");
     reader.end_object().expect("TODO: panic message");
     Ok(data)
 }

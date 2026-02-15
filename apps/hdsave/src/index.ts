@@ -1,28 +1,35 @@
-import {connect, Offset} from "rabbitmq-stream-js-client"
-import type {Message} from "rabbitmq-stream-js-client/dist/publisher"
-import {provider} from "./bundle";
+import { connect, Offset } from "rabbitmq-stream-js-client"
+import type { Message } from "rabbitmq-stream-js-client/dist/publisher"
+import { provider } from "./bundle";
 import * as process from "node:process";
-import {redis} from "bun";
+import { redis } from "bun";
 import ProtoProviderNegotiationKafkaMessage = provider.ProtoProviderNegotiationKafkaMessage;
 
 const GB_BYTES = 1024 * 1024 * 1024;
 const shardId = (process.env.HOSTNAME ?? "").split("-").pop() || process.env.SHARD_ID || 0
 
 async function main() {
+    console.log(`Starting hdsave with shard ID: ${shardId}`);
     const client = await connect({
         hostname: process.env.RABBITMQ_HOST || "localhost",
         port: 5552,
         username: process.env.RABBITMQ_USER || "guest",
         password: process.env.RABBITMQ_PASSWORD || "guest",
         vhost: "/",
-    })
-    client.createStream({
+    }).catch((err) => {
+        console.error('Error connecting to RabbitMQ Streams:', err);
+        process.exit(1);
+    });
+    console.log('Connected to RabbitMQ Streams');
+    await client.createStream({
         stream: `in_network_rates-${shardId}`,
         arguments: {
             'max-length-bytes': GB_BYTES * 5
         }
     }).catch((err) => {
+        console.error('Error creating stream (might already exist):', err);
     });
+    console.log(`Connected to RabbitMQ Streams. Listening to in_network_rates-${shardId}...`);
     const startOffset = await redis.hget(`in_network_rates_${shardId}`, "offset");
     const consumerOptions = {
         stream: `in_network_rates-${shardId}`,

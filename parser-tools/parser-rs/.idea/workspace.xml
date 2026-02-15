@@ -11,9 +11,24 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="fix: add shard ID configuration via environment variable for producer stream">
+    <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="fix: implement retry logic for RabbitMQ environment creation">
+      <change beforePath="$PROJECT_DIR$/../../apps/admin/app/insurance/companies/[insuranceCompanyId]/sources/_components/sourcesForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/admin/app/insurance/companies/[insuranceCompanyId]/sources/_components/sourcesForm.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/admin/app/insurance/companies/[insuranceCompanyId]/sources/new/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/admin/app/insurance/companies/[insuranceCompanyId]/sources/new/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/filePrep.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/filePrep.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/tasks/ImportCigna.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/tasks/ImportCigna.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/tasks/taskRoot.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/tasks/taskRoot.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdsave/src/index.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/in_network/file_root.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/file_root.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/types/bundled_code.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/bundled_code.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/types/in_network.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/in_network.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/types/negotiated_price_object.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/negotiated_price_object.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/types/negotiated_rates.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/negotiated_rates.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/types/providers_object.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/providers_object.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/in_network/types/tax_identifier.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/tax_identifier.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,8 +40,15 @@
       <entry key="_/Users/connerreitmeier/ushio-v2/parser-tools/parser-rs" value="2v0i1hXQBrtG9KKPn5DQqkoaRLV" />
     </persistenceIdMap>
   </component>
+  <component name="CopilotUserSelectedModel">
+    <selectedModels>
+      <entry key="edit-panel" value="GPT-5 mini" />
+      <entry key="chat-panel" value="GPT-5 mini" />
+      <entry key="agent-panel" value="GPT-5 mini" />
+    </selectedModels>
+  </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="27" />
+    <option name="cachedIndexableFilesCount" value="28" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
@@ -91,11 +113,11 @@
   }
 }</component>
   <component name="RecapSpentCounter">
-    <option name="endsOfQuotaMs" value="1769641209859" />
-    <option name="spentUsd" value="0.01138275" />
+    <option name="endsOfQuotaMs" value="1772233206150" />
+    <option name="spentUsd" value="0.09116" />
   </component>
   <component name="RecapUselessUpdatesCounter">
-    <option name="suspendCountdown" value="8" />
+    <option name="suspendCountdown" value="2" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -114,9 +136,11 @@
   <component name="RunManager" selected="Cargo.Run parser-rs">
     <configuration name="Run parser-rs" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="buildProfileId" value="dev" />
-      <option name="command" value="run -- /tmp/s4he6gfxq683813opig5r2hz/2026-01-01_cigna-health-life-insurance-company_localplus-with-ebh-plus-pathwell_in-network-rates.json in_network_rates s4he6gfxq683813opig5r2hz" />
+      <option name="command" value="run -- /Volumes/connerSSD/2026-02-01_Surest_Third-Party-Administrator_DOCTORS-ON-DEMAND-AND-REAL-APPEAL_UNITEDHEALTHCARE-CHOICE-PLUS_-DR_UCQ_in-network-rates.json in_network_rates ins_job_w4hmjhvjkkmdqb0e6w83u7im" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <envs />
+      <envs>
+        <env name="RUST_BACKTRACE" value="full" />
+      </envs>
       <option name="emulateTerminal" value="true" />
       <option name="channel" value="DEFAULT" />
       <option name="requiredFeatures" value="true" />
@@ -193,7 +217,11 @@
       <workItem from="1768619475743" duration="27373000" />
       <workItem from="1769315881635" duration="260000" />
       <workItem from="1769364687684" duration="1513000" />
-      <workItem from="1769383840511" duration="774000" />
+      <workItem from="1769383840511" duration="1475000" />
+      <workItem from="1771031174725" duration="7000" />
+      <workItem from="1771114810119" duration="4861000" />
+      <workItem from="1771120683868" duration="672000" />
+      <workItem from="1771121753431" duration="618000" />
     </task>
     <task id="LOCAL-00001" summary="test">
       <option name="closed" value="true" />
@@ -227,7 +255,15 @@
       <option name="project" value="LOCAL" />
       <updated>1769219440289</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="fix: implement retry logic for RabbitMQ environment creation">
+      <option name="closed" value="true" />
+      <created>1769397482670</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1769397482670</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -238,19 +274,20 @@
     <MESSAGE value="fix: update RabbitMQ host configuration to use environment variable" />
     <MESSAGE value="fix: allow chunk size for provider references to be configured via environment variable" />
     <MESSAGE value="fix: add shard ID configuration via environment variable for producer stream" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: add shard ID configuration via environment variable for producer stream" />
+    <MESSAGE value="fix: implement retry logic for RabbitMQ environment creation" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: implement retry logic for RabbitMQ environment creation" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/src/in_network/types/tax_identifier.rs</url>
-          <line>17</line>
+          <line>18</line>
           <option name="timeStamp" value="15" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/src/in_network/file_root.rs</url>
-          <line>384</line>
+          <line>391</line>
           <option name="timeStamp" value="27" />
         </line-breakpoint>
       </breakpoints>

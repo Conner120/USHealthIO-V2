@@ -2,6 +2,7 @@ use crate::in_network::file_root::InNetworkFileError;
 use serde::Serialize;
 use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
 use struson::reader::{JsonReader, JsonStreamReader};
+use crate::in_network::debug::{debug_begin_object, debug_end_object, debug_begin_array, debug_end_array};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct NegotiatedPriceObject {
@@ -28,6 +29,7 @@ pub fn negotiated_price_object(
         billing_code_modifier: Vec::new(),
         additional_information: Vec::new(),
     };
+    debug_begin_object("$.in_network[].negotiated_rates[].negotiated_prices[]");
     reader.begin_object();
     while true {
         if !reader.has_next().unwrap() {
@@ -48,6 +50,7 @@ pub fn negotiated_price_object(
                 data.expiration_date = Some(value.to_string());
             }
             "service_code" => {
+                debug_begin_array("$.in_network[].negotiated_rates[].negotiated_prices[].service_code");
                 reader.begin_array().unwrap();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -57,6 +60,7 @@ pub fn negotiated_price_object(
                     let value = reader.next_string().unwrap();
                     data.service_code.push(value.to_string());
                 }
+                debug_end_array("$.in_network[].negotiated_rates[].negotiated_prices[].service_code");
                 reader.end_array();
             }
             "billing_class" => {
@@ -68,6 +72,7 @@ pub fn negotiated_price_object(
                 data.setting = Some(value.to_string());
             }
             "billing_code_modifier" => {
+                debug_begin_array("$.in_network[].negotiated_rates[].negotiated_prices[].billing_code_modifier");
                 reader.begin_array().unwrap();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -77,6 +82,7 @@ pub fn negotiated_price_object(
                     let value = reader.next_string().unwrap();
                     data.billing_code_modifier.push(value.to_string());
                 }
+                debug_end_array("$.in_network[].negotiated_rates[].negotiated_prices[].billing_code_modifier");
                 reader.end_array();
             }
             // "additional_information" => {
@@ -96,6 +102,7 @@ pub fn negotiated_price_object(
             }
         }
     }
+    debug_end_object("$.in_network[].negotiated_rates[].negotiated_prices[]");
     let _ = reader.end_object();
     Ok(data)
 }

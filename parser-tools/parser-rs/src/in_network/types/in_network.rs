@@ -5,6 +5,7 @@ use serde::Serialize;
 use std::fs::File;
 use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
 use struson::reader::{JsonReader, JsonStreamReader};
+use crate::in_network::debug::{debug_begin_object, debug_end_object, debug_begin_array, debug_end_array};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct InNetworkObject {
@@ -34,6 +35,7 @@ pub fn in_network_object(
         bundled_codes: Vec::new(),
         covered_services: Vec::new(),
     };
+    debug_begin_object("$.in_network[]");
     reader.begin_object();
     while true {
         if !reader.has_next().unwrap() {
@@ -63,6 +65,7 @@ pub fn in_network_object(
                 data.description = reader.next_string().unwrap();
             }
             "negotiated_rates" => {
+                debug_begin_array("$.in_network[].negotiated_rates");
                 reader.begin_array();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -72,9 +75,11 @@ pub fn in_network_object(
                     let item = negotiated_rates(reader)?;
                     data.negotiated_rate.push(item);
                 }
+                debug_end_array("$.in_network[].negotiated_rates");
                 reader.end_array();
             }
             "bundled_codes" => {
+                debug_begin_array("$.in_network[].bundled_codes");
                 reader.begin_array();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -84,9 +89,11 @@ pub fn in_network_object(
                     let item = bundled_code_object(reader)?;
                     data.bundled_codes.push(item)
                 }
+                debug_end_array("$.in_network[].bundled_codes");
                 reader.end_array();
             }
             "covered_services" => {
+                debug_begin_array("$.in_network[].covered_services");
                 reader.begin_array();
                 loop {
                     let has_next = reader.has_next().unwrap();
@@ -96,6 +103,7 @@ pub fn in_network_object(
                     let item = bundled_code_object(reader)?;
                     data.covered_services.push(item)
                 }
+                debug_end_array("$.in_network[].covered_services");
                 reader.end_array();
             }
             _ => {
@@ -103,6 +111,7 @@ pub fn in_network_object(
             }
         }
     }
+    debug_end_object("$.in_network[]");
     reader.end_object();
     Ok(data)
 }

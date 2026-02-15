@@ -1,6 +1,7 @@
 import axios from "axios";
 import { $, redis } from "bun";
 import { importCignaData } from "./ImportCigna";
+import { importUnitedHealthcareData } from "./ImportUnitedHealthcare";
 import { getFile } from "../filePrep";
 import { prisma } from "@repo/database";
 let t = BigInt(0);
@@ -66,9 +67,23 @@ export async function taskRoot(topicInput: String, taskPayload: TaskPayload) {
         redis.incrby(`${taskPayload.payload.jobId}:ALLOWED_AMOUNT_TOTAL_FILES_PROCESSED`, 1);
         // Call the allowed-amount task handler
     } else if (topic === 'insurance-source-scan-jobs') {
+        console.log("Processing insurance source scan job with payload:", taskPayload);
         if (taskPayload.payload.sourceType === 'CIGNA_INDEX_API') {
             await importCignaData(taskPayload).catch(async (error) => {
                 console.error("Error importing Cigna data:", error);
+                await prisma.insuranceScanJob.update({
+                    where: {
+                        id: taskPayload.id
+                    },
+                    data: {
+                        status: 'FAILED',
+                        statusTime: new Date(),
+                    }
+                });
+            });
+        } else if (taskPayload.payload.sourceType === 'UNITED_HEATHCARE_BLOB_API') {
+            await importUnitedHealthcareData(taskPayload).catch(async (error) => {
+                console.error("Error importing United Healthcare data:", error);
                 await prisma.insuranceScanJob.update({
                     where: {
                         id: taskPayload.id

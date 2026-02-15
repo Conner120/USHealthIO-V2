@@ -7,6 +7,7 @@ use serde::Serialize;
 use std::fs::File;
 use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
 use struson::reader::{JsonReader, JsonStreamReader};
+use crate::in_network::debug::{debug_begin_object, debug_end_object};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct TaxIdentifierObject {
@@ -23,6 +24,7 @@ pub fn tax_identifier_object(
         value: "".to_string(),
         business_name: None,
     };
+    debug_begin_object("$.provider_references[].provider_groups[].tins");
     reader.begin_object().expect("TODO: panic message");
     loop {
         if !reader.has_next().unwrap() {
@@ -44,6 +46,7 @@ pub fn tax_identifier_object(
             }
         }
     }
+    debug_end_object("$.provider_references[].provider_groups[].tins");
     reader.end_object().expect("TODO: panic message");
     Ok(data)
 }
@@ -56,6 +59,7 @@ pub fn tax_identifier_object_raw(
         value: "".to_string(),
         business_name: None,
     };
+    debug_begin_object("$.provider_references[].provider_groups[].tins (raw)");
     reader.begin_object().expect("TODO: panic message");
     loop {
         if !reader.has_next().unwrap() {
@@ -77,6 +81,7 @@ pub fn tax_identifier_object_raw(
             }
         }
     }
+    debug_end_object("$.provider_references[].provider_groups[].tins (raw)");
     reader.end_object().expect("TODO: panic message");
     Ok(data)
 }

@@ -12,4 +12,7 @@ export enum IDTYPE {
     INSURANCE_SCAN_STEP = "ins_step",
     INSURANCE_PLAN = "ins_plan",
     INSURANCE_JOB_FILE = "ins_job_file",
+    PROVIDER = "prv",
+    PROVIDER_GROUP = "prv_grp",
+    PROVIDER_GROUP_PROVIDER = "pgp",
 }

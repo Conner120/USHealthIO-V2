@@ -7,6 +7,7 @@ use serde::Serialize;
 use std::fs::File;
 use struson::reader::simple::{MemberReader, SingleValueReader, ValueReader};
 use struson::reader::{JsonReader, JsonStreamReader};
+use crate::in_network::debug::{debug_begin_object, debug_end_object};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BundledCodeObject {
@@ -25,6 +26,7 @@ pub fn bundled_code_object(
         billing_code: String::new(),
         description: String::new(),
     };
+    debug_begin_object("$.in_network[].bundled_codes[]");
     reader.begin_object().expect("TODO: panic message");
     loop {
         if !reader.has_next().unwrap() {
@@ -53,6 +55,7 @@ pub fn bundled_code_object(
             }
         }
     }
+    debug_end_object("$.in_network[].bundled_codes[]");
     reader.end_object().expect("TODO: panic message");
     Ok(data)
 }

@@ -1,9 +1,9 @@
 // import { type TaskPayload, taskRoot } from "./tasks/taskRoot.ts";
-import {redis} from "bun";
-import {createId} from "@paralleldrive/cuid2";
-import {prisma} from '@repo/database';
-import {Connection} from 'rabbitmq-client'
-import {taskRoot} from "./tasks/taskRoot";
+import { redis } from "bun";
+import { createId } from "@paralleldrive/cuid2";
+import { prisma } from '@repo/database';
+import { Connection } from 'rabbitmq-client'
+import { taskRoot } from "./tasks/taskRoot";
 
 // Initialize:
 const rabbit = new Connection(`amqp://${process.env.RABBITMQ_USER || "guest"}:${process.env.RABBITMQ_PASSWORD || "guest"}@${process.env.RABBITMQ_HOST || "localhost"}:5672`)
@@ -19,7 +19,7 @@ export const pub = rabbit.createPublisher({
     // Enable retries
     maxAttempts: 2,
     // Optionally ensure the existence of an exchange before we use it
-    exchanges: [{exchange: 'tic-data', type: 'topic'}],
+    exchanges: [{ exchange: 'tic-data', type: 'topic' }],
 })
 
 // generate random node id
@@ -29,8 +29,8 @@ await redis.hset('NODES', processId, "IDLE");
 
 let sub = await rabbit.createConsumer({
     queue: 'hdas-jobs',
-    queueOptions: {durable: true},
-    qos: {prefetchCount: 1},
+    queueOptions: { durable: true },
+    qos: { prefetchCount: 1 },
 }, async (msg) => {
     try {
         let d = Date.now();

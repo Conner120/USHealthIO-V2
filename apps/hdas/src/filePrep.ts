@@ -1,11 +1,12 @@
-import {createId} from "@paralleldrive/cuid2";
+import { createId } from "@paralleldrive/cuid2";
 import fs from "fs";
-import {$} from "bun";
-import {FileExtension, FileType, prisma} from "@repo/database";
-import {generateId, IDTYPE} from "@repo/id-gen";
+import { $, sleep } from "bun";
+import { FileExtension, FileType, prisma } from "@repo/database";
+import { generateId, IDTYPE } from "@repo/id-gen";
 import process from "node:process";
 
 const shardId = (process.env.HOSTNAME ?? "").split("-").pop() || process.env.SHARD_ID || 0
+const workDir = process.env.WORK_DIR || "/tmp"
 console.log(shardId)
 
 export async function getFile(url: string, jobId: string): Promise<{
@@ -23,9 +24,9 @@ export async function getFile(url: string, jobId: string): Promise<{
         }
     });
     let id = createId();
-    console.log(`Downloading file from URL: ${url} to /tmp/${id} w/t ${`curl -O --output-dir /tmp/${id}/ "${url}"`}`);
-    fs.mkdirSync(`/tmp/${id}`, {recursive: true});
-    let t = await $`curl -O --output-dir /tmp/${id}/ "${url}"`;
+    console.log(`Downloading file from URL: ${url} to ${workDir}/${id} w/t ${`curl -O --output-dir ${workDir}/${id}/ "${url}"`}`);
+    fs.mkdirSync(`${workDir}/${id}`, { recursive: true });
+    let t = await $`curl -O --output-dir ${workDir}/${id}/ "${url}"`;
     if (t.exitCode !== 0) {
         console.error(`Failed to download file from ${url}. Exit code: ${t.exitCode}`);
         return {
@@ -42,11 +43,11 @@ export async function getFile(url: string, jobId: string): Promise<{
         }
     });
     // find all files and decompress bassed on extension
-    let files = fs.readdirSync(`/tmp/${id}`);
+    let files = fs.readdirSync(`${workDir}/${id}`);
     for (let file of files) {
         if (file.endsWith(".gz")) {
             console.log(`Decompressing gzip file: ${file}`);
-            let decompress = await $`gunzip /tmp/${id}/${file}`;
+            let decompress = await $`gunzip -c ${workDir}/${id}/${file} > ${workDir}/${id}/${file.replace(/\.gz$/, '')}`;
             if (decompress.exitCode !== 0) {
                 console.error(`Failed to decompress file: ${file}. Exit code: ${decompress.exitCode}`);
                 return {
@@ -56,7 +57,7 @@ export async function getFile(url: string, jobId: string): Promise<{
         } else if (file.endsWith(".zip")) {
             console.log(`Decompressing zip file: ${file}`);
             try {
-                let decompress = await $`unzip /tmp/${id}/${file} -d /tmp/${id}/`;
+                let decompress = await $`unzip ${workDir}/${id}/${file} -d ${workDir}/${id}/`;
                 if (decompress.exitCode !== 0) {
                     console.error(`Failed to decompress file: ${file}. Exit code: ${decompress.exitCode}`);
                     return {
@@ -64,10 +65,11 @@ export async function getFile(url: string, jobId: string): Promise<{
                     }
                 }
                 // remove the zip file after extraction
-                fs.unlinkSync(`/tmp/${id}/${file}`);
+                fs.unlinkSync(`${workDir}/${id}/${file}`);
             } catch (error) {
                 console.error(`Error decompressing zip file: ${file}. Error: ${error}`);
             }
+            await sleep(5000); // wait for a second to ensure files are written to disk
         }
     }
     await prisma.insuranceScanJob.update({
@@ -81,11 +83,11 @@ export async function getFile(url: string, jobId: string): Promise<{
     });
     // calculate total size of all files in the directory
     let totalSize = 0;
-    let finalFiles = fs.readdirSync(`/tmp/${id}`);
+    let finalFiles = fs.readdirSync(`${workDir}/${id}`);
     for (let file of finalFiles) {
-        let stats = fs.statSync(`/tmp/${id}/${file}`);
+        let stats = fs.statSync(`${workDir}/${id}/${file}`);
         totalSize += stats.size;
-        let fileHash = await $`sha256sum /tmp/${id}/${file}`.text();
+        let fileHash = await $`sha256sum ${workDir}/${id}/${file}`.text();
         console.log(`File: ${file}, Size: ${stats.size} bytes, Hash: ${fileHash.split(' ')[0]}`);
         await prisma.insuranceScanDecompressedFile.create({
             data: {
@@ -103,9 +105,9 @@ export async function getFile(url: string, jobId: string): Promise<{
     let errors: string[] = []
     // parse 
     for (let file of finalFiles) {
-        console.log(`Parsing file run main /tmp/${id}/${file} in_network_rates`);
+        console.log(`Parsing file run main ${workDir}/${id}/${file} in_network_rates`);
         // add parsing logic here as needed
-        let t = await $`RABBITMQ_USER=${process.env.RABBITMQ_USER} RABBITMQ_PASSWORD=${process.env.RABBITMQ_PASSWORD} RABBITMQ_HOST=${process.env.RABBITMQ_HOST} SHARD_ID=${shardId} ../../parser-tools/parser-rs/target/release/main /tmp/${id}/${file} in_network_rates ${jobId}`.catch(async (error) => {
+        let t = await $`RABBITMQ_USER=${process.env.RABBITMQ_USER} RABBITMQ_PASSWORD=${process.env.RABBITMQ_PASSWORD} RABBITMQ_HOST=${process.env.RABBITMQ_HOST} SHARD_ID=${shardId} ../../parser-tools/parser-rs/target/release/main ${workDir}/${id}/${file} in_network_rates ${jobId}`.catch(async (error) => {
             return error.message;
         })
         if (!t) {
@@ -114,7 +116,7 @@ export async function getFile(url: string, jobId: string): Promise<{
         }
     }
 
-    await $`rm -rf /tmp/${id}`;
+    await $`rm -rf ${workDir}/${id}`;
     if (errors.length > 0) {
         return {
             size: 0, success: false, message: `Failed to parse ${errors} files.`
