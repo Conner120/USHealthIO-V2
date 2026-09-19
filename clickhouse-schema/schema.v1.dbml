@@ -1,0 +1,166 @@
+// dbdiagram.io (DBML) view of clickhouse-schema/schema.sql.
+// Paste into https://dbdiagram.io/d  — keep in sync with schema.sql by hand.
+//
+// ClickHouse has no foreign keys; the Ref lines below document the join paths
+// the code relies on. Every row is tagged with insurance_scan_job_id, which is
+// the FileJob.id the job-controller queued and the <job_id> passed to parser-rs.
+
+Project ushio_health {
+  database_type: 'ClickHouse'
+  Note: '''
+    Insurance MRF (machine-readable file) pricing data.
+    Written by parser-rs (SINK=clickhouse) and apps/job-controller.
+    Append-only MergeTree family; no updates. A re-run of a file is a new job id.
+  '''
+}
+
+// ── Discovery (job-controller) ─────────────────────────────────────────────
+
+Table mrf_file_plans {
+  file_url              varchar   [note: 'Canonical identity of the MRF file']
+  file_job_id           varchar   [note: "FileJob.id -> in_network_rates.insurance_scan_job_id. '' if never queued (e.g. no size)"]
+  file_type             varchar   [note: "LowCardinality: 'in-network-rates' | 'allowed-amounts'"]
+  index_url             varchar   [note: 'The table-of-contents (index) JSON this reference came from']
+  reporting_entity_name varchar
+  reporting_entity_type varchar   [note: 'LowCardinality']
+  plan_name             varchar
+  plan_id_type          varchar   [note: "LowCardinality: 'EIN' | 'HIOS'"]
+  plan_id               varchar
+  plan_market_type      varchar   [note: "LowCardinality: 'group' | 'individual'"]
+  plan_sponsor_name     varchar
+  issuer_name           varchar
+  discovered_at         datetime  [note: 'ReplacingMergeTree version column']
+
+  indexes {
+    (file_url, reporting_entity_name, plan_id, plan_name) [pk, note: 'ORDER BY / dedupe key']
+    file_job_id [name: 'idx_job', note: 'ClickHouse skip index: bloom_filter']
+    plan_id     [name: 'idx_plan', note: 'ClickHouse skip index: bloom_filter']
+  }
+
+  Note: '''
+    ENGINE = ReplacingMergeTree(discovered_at)
+    Many-to-many: which plans an MRF file applies to. One row per (file, plan)
+    reference, written at discovery for EVERY index that references the file,
+    even when the file itself was deduped and queued once. This is the source
+    of truth for plan linkage on shared files (UHC: one network file is
+    referenced by tens of thousands of employer indexes).
+  '''
+}
+
+// ── Parsed output (parser-rs) ──────────────────────────────────────────────
+
+Table mrf_files {
+  insurance_scan_job_id    varchar  [pk, note: 'ORDER BY. One row per parsed file / job']
+  reporting_entity_name    varchar
+  reporting_entity_type    varchar  [note: 'LowCardinality']
+  issuer_name              varchar
+  plan_name                varchar
+  plan_id_type             varchar  [note: 'LowCardinality']
+  plan_id                  varchar
+  plan_sponsor_name        varchar
+  plan_market_type         varchar  [note: 'LowCardinality']
+  version                  varchar  [note: 'LowCardinality: MRF schema version, e.g. 2.0.0']
+  provider_reference_count bigint   [note: 'UInt64']
+  in_network_count         bigint   [note: 'UInt64']
+  rate_row_count           bigint   [note: 'UInt64']
+  ingested_at              datetime [default: `now()`, note: 'ReplacingMergeTree version column']
+
+  Note: '''
+    ENGINE = ReplacingMergeTree(ingested_at)
+    File header + row counts per job. Holds only the plan fields present in the
+    file header itself; for shared files use mrf_file_plans for plan linkage.
+    Read with FINAL or argMax.
+  '''
+}
+
+Table provider_groups {
+  insurance_scan_job_id varchar
+  provider_group_id     bigint   [note: 'Int64; id local to the file (provider_references[].provider_group_id)']
+  network_name          "Array(String)" [note: 'LowCardinality elements']
+  tin_type              varchar  [note: "LowCardinality: 'ein' | 'npi'"]
+  tin_value             varchar
+  business_name         varchar  [note: 'CODEC(ZSTD(1))']
+  npi                   "Array(Int64)"
+  ingested_at           datetime [default: `now()`]
+
+  indexes {
+    (insurance_scan_job_id, provider_group_id, tin_value) [pk, note: 'ORDER BY']
+    npi       [name: 'idx_npi', note: 'ClickHouse skip index: bloom_filter']
+    tin_value [name: 'idx_tin', note: 'ClickHouse skip index: bloom_filter']
+  }
+
+  Note: '''
+    ENGINE = MergeTree, PARTITION BY toYYYYMM(ingested_at)
+    One row per (job, provider_group_id, TIN) with NPIs as an array.
+    Rates never repeat provider data; join on (insurance_scan_job_id, provider_group_id).
+  '''
+}
+
+Table provider_group_npi {
+  npi                   bigint  [note: 'Int64; one NPI per row (arrayJoin of provider_groups.npi)']
+  insurance_scan_job_id varchar
+  provider_group_id     bigint  [note: 'Int64']
+  tin_value             varchar
+
+  indexes {
+    (npi, insurance_scan_job_id, provider_group_id) [pk, note: 'ORDER BY']
+  }
+
+  Note: '''
+    ENGINE = MergeTree
+    Inverted lookup NPI -> provider groups. Populated automatically by the
+    materialized view provider_group_npi_mv (SELECT arrayJoin(npi) ... FROM provider_groups).
+    Never written directly.
+  '''
+}
+
+Table in_network_rates {
+  insurance_scan_job_id     varchar
+  provider_group_id         bigint   [note: 'Int64 -> provider_groups.provider_group_id (same job)']
+  negotiation_arrangement   varchar  [note: "LowCardinality: 'ffs' | 'bundle' | 'capitation'"]
+  billing_code_type         varchar  [note: "LowCardinality: 'CPT' | 'HCPCS' | 'MS-DRG' | 'RC' | ..."]
+  billing_code_type_version varchar  [note: 'LowCardinality']
+  billing_code              varchar  [note: 'LowCardinality']
+  name                      varchar  [note: 'LowCardinality']
+  description               varchar  [note: 'LowCardinality']
+  severity_of_illness       varchar  [note: "LowCardinality; '' when absent"]
+  negotiated_type           varchar  [note: "LowCardinality: 'negotiated' | 'derived' | 'fee schedule' | 'percentage' | 'per diem'"]
+  negotiated_rate           double   [null, note: 'Nullable(Float64) CODEC(Gorilla, ZSTD(1))']
+  expiration_date           date     [null, note: 'Nullable(Date32); clamped to 2299-12-31 (carriers use 9999-12-31 for never)']
+  service_code              "Array(String)" [note: 'LowCardinality elements; CMS place-of-service codes']
+  billing_class             varchar  [note: "LowCardinality: 'professional' | 'institutional'"]
+  setting                   varchar  [note: "LowCardinality; '' when absent"]
+  billing_code_modifier     "Array(String)" [note: 'LowCardinality elements']
+  additional_information    "Array(String)" [note: 'CODEC(ZSTD(1))']
+  zombie_verdict            varchar  [default: 'ALLOW', note: "LowCardinality: 'ALLOW' | 'REVIEW' | 'DENY' (parser-rs allowlist.rs)"]
+  zombie_rule               varchar  [default: 'ok', note: "LowCardinality rule id, e.g. 'mod.27_professional'"]
+  ingested_at               datetime [default: `now()`]
+
+  indexes {
+    (insurance_scan_job_id, billing_code_type, billing_code, provider_group_id) [pk, note: 'ORDER BY']
+    negotiated_rate [name: 'idx_rate', note: 'ClickHouse skip index: minmax']
+  }
+
+  Note: '''
+    ENGINE = MergeTree, PARTITION BY toYYYYMM(ingested_at), index_granularity = 8192
+    One row per negotiated price x provider_group_id. Never repeats provider data.
+    ZOMBIE_FILTER on the parser decides whether REVIEW/DENY rows are dropped before insert;
+    the verdict is always populated.
+    Clean up a job: ALTER TABLE in_network_rates DELETE WHERE insurance_scan_job_id = '...'
+  '''
+}
+
+// ── Join paths (no real FKs in ClickHouse) ─────────────────────────────────
+
+// A file job's rates / providers / header all share the job id.
+Ref: in_network_rates.insurance_scan_job_id > mrf_files.insurance_scan_job_id
+Ref: provider_groups.insurance_scan_job_id  > mrf_files.insurance_scan_job_id
+
+// Rates -> the provider group they price (composite: same job + group id).
+Ref: in_network_rates.(insurance_scan_job_id, provider_group_id) > provider_groups.(insurance_scan_job_id, provider_group_id)
+
+// NPI lookup is a projection of provider_groups (kept by the MV).
+Ref: provider_group_npi.(insurance_scan_job_id, provider_group_id) > provider_groups.(insurance_scan_job_id, provider_group_id)
+
+// Which plans a parsed file applies to: many plan rows per job id.
+Ref: mrf_file_plans.file_job_id > mrf_files.insurance_scan_job_id

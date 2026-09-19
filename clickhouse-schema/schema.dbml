@@ -1,0 +1,315 @@
+// dbdiagram.io (DBML) view of clickhouse-schema/schema.sql (v2).
+// Paste into https://dbdiagram.io/d — keep in sync with schema.sql by hand.
+//
+// v2 = content-addressed rates + "seen" records.
+//   * A negotiated price is stored ONCE in `rates`, keyed by rate_hash (xxHash64 of its content).
+//   * A provider group is stored ONCE in `provider_groups`, keyed by provider_group_hash (the TIN).
+//     Its NPI membership is time-varying and is recorded per file on `provider_group_seen`.
+//   * Every observation "rate R offered to group P in file J published on D" is one narrow row in
+//     `rate_seen`. History (first/last seen, how often) is rolled up by `rate_history`.
+//   * Time-varying attributes (expiration, network names, NPI membership, the file-local
+//     provider_group_id) live on the seen records so they don't fragment the hashed entities.
+// ClickHouse has no foreign keys; Refs document the join paths the code relies on.
+
+Project ushio_health_v2 {
+  database_type: 'ClickHouse'
+  Note: '''
+    Insurance MRF pricing data. Written by parser-rs (SINK=clickhouse) and apps/job-controller.
+    Append-only; nothing is updated or deleted. A re-run of a file is a new insurance_scan_job_id.
+
+    Hash inputs (fields joined with "|", arrays sorted + joined with ",", NULL -> ""):
+      rate_hash = xxHash64(billing_code_type|billing_code_type_version|billing_code|
+                            negotiation_arrangement|negotiated_type|negotiated_rate(%.4f)|
+                           billing_class|setting|severity_of_illness|
+                           service_code[]|billing_code_modifier[]|additional_information[])
+      provider_group_hash = xxHash64(tin_type|tin_value)
+      billing_key_hash = xxHash64(billing_code_type|billing_code_type_version|billing_code|
+                                  billing_class|setting|severity_of_illness|billing_code_modifier[])
+    name/description/business_name are labels, not identity: not hashed, latest wins.
+
+    Validity: billing_key_hash is a pricing SLOT (what a provider is paid for a code in a
+    class/setting/severity with modifiers). Rate, negotiated_type, arrangement, service codes
+    and additional_information are price/terms. Same slot + different rate_hash in a newer
+    publication => the old rate is `superseded` in rate_validity. `withdrawn` is reserved for
+    a later carrier-wide pass. The pass runs after a scan (job-controller -> runtime), not here.
+    Entity tables keep first_ingested_at (min) / last_ingested_at (max) across re-sightings;
+    seen tables keep a plain ingested_at per row.
+  '''
+}
+
+TableGroup discovery {
+  mrf_file_plans
+  mrf_files
+}
+
+TableGroup entities [note: 'Content-addressed. One row per distinct thing, ever.'] {
+  rates
+  provider_groups
+}
+
+TableGroup seen [note: 'Observations. These grow with volume.'] {
+  rate_seen
+  provider_group_seen
+  provider_group_npi
+  rate_history
+}
+
+TableGroup validity [note: 'Current state, written by the post-scan pass only.'] {
+  rate_validity
+  provider_validity
+}
+
+// ── Discovery (job-controller) ─────────────────────────────────────────────
+
+Table mrf_file_plans {
+  file_url              varchar   [note: 'Canonical identity of the MRF file']
+  file_job_id           varchar   [note: "FileJob.id = insurance_scan_job_id. '' if never queued (e.g. no size)"]
+  file_type             varchar   [note: "LowCardinality: 'in-network-rates' | 'allowed-amounts'"]
+  index_url             varchar   [note: 'The TOC (index JSON) this reference came from']
+  reporting_entity_name varchar
+  reporting_entity_type varchar   [note: 'LowCardinality']
+  plan_name             varchar
+  plan_id_type          varchar   [note: "LowCardinality: 'EIN' | 'HIOS'"]
+  plan_id               varchar
+  plan_market_type      varchar   [note: "LowCardinality: 'group' | 'individual'"]
+  plan_sponsor_name     varchar
+  issuer_name           varchar
+  discovered_at         datetime  [note: 'ReplacingMergeTree version column']
+
+  indexes {
+    (file_url, reporting_entity_name, plan_id, plan_name) [pk, note: 'ORDER BY / dedupe key']
+    file_job_id [name: 'idx_job',  note: 'skip index: bloom_filter']
+    plan_id     [name: 'idx_plan', note: 'skip index: bloom_filter']
+  }
+  Note: '''
+    ENGINE = ReplacingMergeTree(discovered_at)
+    Many-to-many file <-> plan. One row per (file, plan) reference, written at discovery for EVERY
+    index that references the file (a shared file is queued once, linked to all its plans).
+  '''
+}
+
+Table mrf_files {
+  insurance_scan_job_id    varchar  [pk, note: 'ORDER BY. = FileJob.id = parser <job_id>']
+  file_url                 varchar  [note: "'' for legacy jobs"]
+  reporting_entity_name    varchar
+  reporting_entity_type    varchar  [note: 'LowCardinality']
+  last_updated_on          date     [note: "The file's own publication date -> seen_on on the seen tables"]
+  version                  varchar  [note: 'LowCardinality: MRF schema version']
+  provider_reference_count bigint   [note: 'UInt64']
+  in_network_count         bigint   [note: 'UInt64']
+  rate_row_count           bigint   [note: 'UInt64: rate_seen rows written for this job']
+  distinct_rate_count      bigint   [note: 'UInt64: distinct rate_hash in this job']
+  ingested_at              datetime [default: `now()`, note: 'ReplacingMergeTree version column']
+  Note: '''
+    ENGINE = ReplacingMergeTree(ingested_at)
+    One row per parsed file / job: header + counts. Plan linkage is in mrf_file_plans.
+  '''
+}
+
+// ── Content-addressed entities (parser-rs) ─────────────────────────────────
+
+Table rates {
+  rate_hash                 bigint   [pk, note: 'UInt64 xxHash64 of the canonical rate string (see Project note)']
+  billing_key_hash          bigint   [note: 'UInt64. The pricing slot this rate fills (see Project note)']
+  billing_code_type         varchar  [note: "LowCardinality: 'CPT' | 'HCPCS' | 'MS-DRG' | 'RC' | ..."]
+  billing_code_type_version varchar  [note: 'LowCardinality']
+  billing_code              varchar  [note: 'LowCardinality']
+  negotiation_arrangement   varchar  [note: "LowCardinality: 'ffs' | 'bundle' | 'capitation'"]
+  negotiated_type           varchar  [note: "LowCardinality: 'negotiated' | 'derived' | 'fee schedule' | 'percentage' | 'per diem'"]
+  negotiated_rate           double   [null, note: 'Nullable(Float64) CODEC(Gorilla, ZSTD(1))']
+  billing_class             varchar  [note: "LowCardinality: 'professional' | 'institutional'"]
+  setting                   varchar  [note: "LowCardinality; '' when absent"]
+  severity_of_illness       varchar  [note: "LowCardinality; '' when absent"]
+  service_code              "Array(String)" [note: 'any; sorted']
+  billing_code_modifier     "Array(String)" [note: 'any; sorted']
+  additional_information    "Array(String)" [note: 'CODEC(ZSTD(1)); sorted']
+  name                      varchar  [note: 'anyLast. Label, NOT hashed — latest wins']
+  description               varchar  [note: 'anyLast. Label, NOT hashed — latest wins']
+  zombie_verdict            varchar  [note: "anyLast: 'ALLOW' | 'REVIEW' | 'DENY' — property of the price's shape, stable per hash"]
+  zombie_rule               varchar  [note: 'anyLast. Rule id (parser-rs allowlist.rs)']
+  first_ingested_at         datetime [note: 'min — the FIRST time this price was ever ingested']
+  last_ingested_at          datetime [note: 'max — most recent ingestion that carried it']
+
+  indexes {
+    (billing_code_type, billing_code) [name: 'idx_code', note: 'skip index: bloom_filter']
+    billing_key_hash                  [name: 'idx_slot', note: 'skip index: bloom_filter']
+    negotiated_rate                   [name: 'idx_rate', note: 'skip index: minmax']
+  }
+  Note: '''
+    ENGINE = AggregatingMergeTree, ORDER BY rate_hash
+    One row per distinct negotiated price, ever. Content columns are `any` (identical for a hash
+    by construction), labels `anyLast`, ingestion times min/max. Read with FINAL or GROUP BY.
+    expiration_date is deliberately NOT here (it changes monthly) — it is on rate_seen.
+  '''
+}
+
+Table provider_groups {
+  provider_group_hash bigint   [pk, note: 'UInt64 xxHash64(tin_type|tin_value)']
+  tin_type            varchar  [note: "LowCardinality: 'ein' | 'npi'"]
+  tin_value           varchar
+  business_name       varchar  [note: 'anyLast, CODEC(ZSTD(1)). Label, NOT hashed — latest wins']
+  first_ingested_at   datetime [note: 'min — first time this TIN was ever ingested']
+  last_ingested_at    datetime [note: 'max — most recent ingestion that carried it']
+
+  indexes {
+    tin_value [name: 'idx_tin', note: 'skip index: bloom_filter']
+  }
+  Note: '''
+    ENGINE = AggregatingMergeTree, ORDER BY provider_group_hash. Read with FINAL or GROUP BY.
+    One row per distinct TIN. Everything that changes between files — NPI membership,
+    network_name, the file-local provider_group_id — lives on provider_group_seen.
+  '''
+}
+
+// ── Seen records ───────────────────────────────────────────────────────────
+
+Table provider_group_seen {
+  provider_group_hash   bigint   [note: 'UInt64']
+  insurance_scan_job_id varchar
+  provider_group_id     bigint   [note: 'Int64; id local to that file (what its rates referred to)']
+  npi                   "Array(Int64)" [note: 'The NPIs under this TIN in that file; sorted ascending']
+  network_name          "Array(String)" [note: 'LowCardinality elements; as listed in that file']
+  seen_on               date     [note: '= mrf_files.last_updated_on']
+  ingested_at           datetime [default: `now()`]
+
+  indexes {
+    (provider_group_hash, seen_on, insurance_scan_job_id) [pk, note: 'ORDER BY']
+  }
+  Note: '''
+    ENGINE = MergeTree, PARTITION BY toYYYYMM(seen_on)
+    "Group P appeared in file J with these NPIs." One row per (job, group).
+    NPI membership is time-varying: diff npi[] across seen_on to see providers join/leave a TIN.
+  '''
+}
+
+Table provider_group_npi {
+  npi                   bigint  [note: 'Int64; one NPI per row (arrayJoin of provider_group_seen.npi)']
+  provider_group_hash   bigint  [note: 'UInt64']
+  seen_on               date
+  insurance_scan_job_id varchar
+
+  indexes {
+    (npi, provider_group_hash, seen_on, insurance_scan_job_id) [pk, note: 'ORDER BY']
+  }
+  Note: '''
+    ENGINE = MergeTree, PARTITION BY toYYYYMM(seen_on)
+    Inverted lookup NPI -> (group, when). Populated by provider_group_npi_mv from
+    provider_group_seen; never written directly. min/max(seen_on) per (npi, group) = NPI tenure.
+  '''
+}
+
+Table rate_seen {
+  rate_hash             bigint   [note: 'UInt64']
+  billing_key_hash      bigint   [note: 'UInt64; denormalised from rates so supersede detection is a self-join']
+  provider_group_hash   bigint   [note: 'UInt64']
+  insurance_scan_job_id varchar
+  seen_on               date     [note: '= mrf_files.last_updated_on (publication month)']
+  expiration_date       date     [null, note: 'Nullable(Date32) CODEC(Delta, ZSTD); clamped to 2299-12-31 (9999-12-31 = never)']
+  ingested_at           datetime [default: `now()`]
+
+  indexes {
+    (rate_hash, provider_group_hash, seen_on, insurance_scan_job_id) [pk, note: 'ORDER BY']
+    (provider_group_hash, billing_key_hash, seen_on) [name: 'PROJECTION by_provider', note: 'same rows, provider/slot-first order']
+    insurance_scan_job_id [name: 'idx_job', note: 'skip index: bloom_filter']
+  }
+  Note: '''
+    ENGINE = MergeTree, PARTITION BY toYYYYMM(seen_on)
+    THE fact table: "rate R was offered to group P in file J, published D, expiring E."
+    One row per (job, rate, group). The only table that grows with MRF volume; each row is
+    ~70 bytes instead of a full rate row, and identical prices across files/months collapse
+    onto the same rate_hash.
+  '''
+}
+
+Table rate_history {
+  rate_hash           bigint [note: 'UInt64']
+  provider_group_hash bigint [note: 'UInt64']
+  first_seen          date   [note: 'SimpleAggregateFunction(min, Date)']
+  last_seen           date   [note: 'SimpleAggregateFunction(max, Date)']
+  times_seen          bigint [note: 'SimpleAggregateFunction(sum, UInt64)']
+  last_expiration     date   [null, note: 'SimpleAggregateFunction(max, Nullable(Date32))']
+
+  indexes {
+    (rate_hash, provider_group_hash) [pk, note: 'ORDER BY']
+  }
+  Note: '''
+    ENGINE = AggregatingMergeTree, fed by rate_history_mv FROM rate_seen
+    Lifetime of each (rate, provider group) pair. Read with GROUP BY min/max/sum (or FINAL).
+    last_seen < current month  =>  the rate was withdrawn or repriced.
+  '''
+}
+
+// ── Validity (current state) ───────────────────────────────────────────────
+
+Table rate_validity {
+  reporting_entity_name varchar
+  provider_group_hash   bigint   [note: 'UInt64']
+  billing_key_hash      bigint   [note: 'UInt64: the pricing slot']
+  rate_hash             bigint   [note: 'UInt64: the rate that holds/held the slot']
+  status                varchar  [note: "LowCardinality: 'active' | 'superseded' | 'withdrawn' (reserved)"]
+  valid_from            date     [note: 'seen_on of the publication that introduced this rate for the slot']
+  valid_to              date     [null, note: 'seen_on of the publication that replaced it; NULL while active']
+  superseded_by         bigint   [default: 0, note: 'UInt64 rate_hash that replaced it; 0 while active']
+  as_of_scan_job_id     varchar  [note: 'Top-level scan job that produced this row']
+  as_of                 datetime [default: `now()`, note: 'ReplacingMergeTree version column']
+
+  indexes {
+    (reporting_entity_name, provider_group_hash, billing_key_hash) [pk, note: 'ORDER BY: one row per slot per provider per entity']
+    rate_hash [name: 'idx_rate',   note: 'skip index: bloom_filter']
+    status    [name: 'idx_status', note: 'skip index: set(3)']
+  }
+  Note: '''
+    ENGINE = ReplacingMergeTree(as_of). Read with FINAL.
+    Current rate for each (entity, provider, slot). Written only by the post-scan supersede
+    pass, never by the parser. Same slot + different rate_hash in a newer publication =>
+    old row rewritten as `superseded` (valid_to, superseded_by), new rate written as `active`.
+    History of every observation stays in rate_seen / rate_history.
+  '''
+}
+
+Table provider_validity {
+  reporting_entity_name varchar
+  provider_group_hash   bigint   [note: 'UInt64']
+  status                varchar  [note: "LowCardinality: 'active' | 'withdrawn' (reserved)"]
+  valid_from            date     [note: 'first seen_on for this entity']
+  last_seen_on          date     [note: 'newest seen_on for this entity']
+  valid_to              date     [null, note: 'NULL while active']
+  as_of_scan_job_id     varchar
+  as_of                 datetime [default: `now()`, note: 'ReplacingMergeTree version column']
+
+  indexes {
+    (reporting_entity_name, provider_group_hash) [pk, note: 'ORDER BY']
+  }
+  Note: '''
+    ENGINE = ReplacingMergeTree(as_of). Read with FINAL.
+    Whether a provider group is currently published by a reporting entity. `withdrawn` is
+    reserved for the carrier-wide pass that runs once a whole insurer has been scanned.
+  '''
+}
+
+// ── Join paths ─────────────────────────────────────────────────────────────
+
+// observation -> what was seen
+Ref: rate_seen.rate_hash            > rates.rate_hash
+Ref: rate_seen.provider_group_hash  > provider_groups.provider_group_hash
+Ref: rate_seen.insurance_scan_job_id > mrf_files.insurance_scan_job_id
+
+// provider appearance in a file
+Ref: provider_group_seen.provider_group_hash   > provider_groups.provider_group_hash
+Ref: provider_group_seen.insurance_scan_job_id > mrf_files.insurance_scan_job_id
+
+// NPI lookup (MV projection of provider_group_seen)
+Ref: provider_group_npi.provider_group_hash   > provider_groups.provider_group_hash
+Ref: provider_group_npi.insurance_scan_job_id > mrf_files.insurance_scan_job_id
+
+// rolled-up history of a (rate, group) pair
+Ref: rate_history.rate_hash           > rates.rate_hash
+Ref: rate_history.provider_group_hash > provider_groups.provider_group_hash
+
+// which plans a parsed file applies to
+Ref: mrf_file_plans.file_job_id > mrf_files.insurance_scan_job_id
+
+// current validity -> the rate holding the slot and the provider
+Ref: rate_validity.rate_hash           > rates.rate_hash
+Ref: rate_validity.provider_group_hash > provider_groups.provider_group_hash
+Ref: provider_validity.provider_group_hash > provider_groups.provider_group_hash

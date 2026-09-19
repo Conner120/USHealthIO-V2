@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {BriefcaseMedicalIcon, Hospital, IdCard, LifeBuoy, Send, Users,} from "lucide-react"
+import {BriefcaseMedicalIcon, Hospital, IdCard, LifeBuoy, ListChecks, Send, Users,} from "lucide-react"
 
 import {NavMain} from "@/components/nav-main"
 import {NavSecondary} from "@/components/nav-secondary"
@@ -54,6 +54,22 @@ const data = {
                     title: "Setup Insurance Companies",
                     url: "/insurance/companies/new",
                 }
+            ],
+        },
+        {
+            title: "Jobs",
+            url: "/jobs/queues",
+            icon: ListChecks,
+            isActive: true,
+            items: [
+                {
+                    title: "Job Queues",
+                    url: "/jobs/queues",
+                },
+                {
+                    title: "Test Jobs",
+                    url: "/jobs/test",
+                },
             ],
         },
         {
