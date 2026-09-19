@@ -25,14 +25,12 @@ bun generate         # Code generation (Prisma client, etc.)
 
 ### Database (packages/database)
 
+**IMPORTANT: Never run `prisma migrate dev`, `prisma db push`, `prisma db execute`, or any command that modifies the database. Only edit `schema.prisma` — the user will run migrations themselves.**
+
 ```bash
 cd packages/database
-bunx prisma migrate dev     # Create and apply migrations
-bunx prisma migrate deploy  # Deploy migrations (production)
-bunx prisma db push         # Push schema without migration
-bunx prisma studio          # Open Prisma Studio GUI
 bunx prisma format          # Format schema file
-bunx tsx src/seed.ts         # Seed database
+bunx prisma validate        # Validate schema file
 ```
 
 ### Rust Parser (parser-tools/parser-rs)
@@ -49,13 +47,14 @@ Protobuf codegen runs automatically via `build.rs` during cargo build.
 ### Data Flow
 
 ```
-Admin UI → RabbitMQ job queue → HDAS → Rust Parser → RabbitMQ streams → HDSave → PostgreSQL
+Admin UI → RabbitMQ job queue → HDAS → Rust Parser → ClickHouse   (SINK=clickhouse, default)
+                                                   └→ RabbitMQ streams → HDSave   (SINK=rabbitmq, legacy)
 ```
 
 1. **Admin** (`apps/admin/`) — Next.js 16 dashboard. Manages insurance companies, scan sources, procedure codes, and provider groups. Publishes MRF parsing jobs to RabbitMQ. Auth via WorkOS AuthKit.
 2. **HDAS** (`apps/hdas/`) — Bun service. Consumes jobs from `hdas-jobs` RabbitMQ queue, orchestrates multi-step file parsing, invokes the Rust parser as a subprocess, tracks job status/progress in PostgreSQL.
-3. **parser-rs** (`parser-tools/parser-rs/`) — Rust binary. Streaming JSON parser (struson) for large MRF files. Publishes parsed negotiated rates as protobuf messages to RabbitMQ streams.
-4. **HDSave** (`apps/hdsave/`) — Bun service. Consumes protobuf-encoded messages from RabbitMQ streams (`in_network_rates-{shardId}`), persists rate data. Uses Redis for stream offset tracking.
+3. **parser-rs** (`parser-tools/parser-rs/`) — Rust binary. mmaps the MRF file, a structural scanner (`scan.rs`) finds element byte ranges, and N worker tasks (`pipeline.rs`, default = all cores) parse them with serde_json (`model.rs`). Output sink is chosen by `SINK`: `clickhouse` (default; each worker streams RowBinary inserts, see `clickhouse-schema/schema.sql`), `rabbitmq` (legacy protobuf publisher to RabbitMQ streams), or `none`. All tuning is via env vars — see `parser-tools/parser-rs/.env.example`. `allowlist.rs` classifies each price as ALLOW/REVIEW/DENY (structural "zombie rate" rules on class × code type × code range × modifier); the verdict is stored in ClickHouse (`zombie_verdict`, `zombie_rule`) and `ZOMBIE_FILTER=off|deny|review` decides whether flagged rows are dropped. `cargo run --release --bin classify_codes -- <csv>` runs the same rules over a billing-codes CSV offline.
+4. **HDSave** (`apps/hdsave/`) — Bun service. Legacy consumer for the `SINK=rabbitmq` path: reads protobuf messages from RabbitMQ streams (`in_network_rates-{shardId}`). Not used when the parser writes to ClickHouse directly.
 
 ### Shared Packages
 
@@ -80,6 +79,10 @@ PostgreSQL, Redis, RabbitMQ (with streams plugin), Kafka (optional, parser can p
 ## Docker
 
 Dockerfiles exist in `apps/hdas/Dockerfile` and `apps/hdsave/Dockerfile`. Both use `oven/bun:1.3` base. HDAS Dockerfile also builds the Rust parser. Images are published to `ghcr.io/conner120/` via GitHub Actions.
+
+## ClickHouse Schema
+
+`clickhouse-schema/schema.sql` defines the analytics tables the parser writes to (`health.in_network_rates`, `health.provider_groups`, `health.provider_group_npi` MV, `health.mrf_files`). Apply with `clickhouse-client --multiquery < clickhouse-schema/schema.sql`. Append-only; rows are keyed by `insurance_scan_job_id`.
 
 ## CQL Schema
 

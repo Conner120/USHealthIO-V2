@@ -7,16 +7,32 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.44.1", features = ["rt", "rt-multi-thread", "macros"] }
-struson = { version = "0.6.0", features = ["simple-api"]}
 rdkafka = "0.38.0"
 serde = { version = "1.0.228", features = ["derive"] }
 protobuf = "2.28.0"
 reqwest = {version = "0.12.24", features = ["json", "gzip", "brotli"] }
 rabbitmq-stream-client = "*"
 dotenv = "0.15.0"
+clickhouse = { version = "0.15.2", features = ["inserter", "chrono", "rustls-tls", "zstd"] }
+chrono = "0.4"
+serde_json = "1"
+memmap2 = "0.9"
+memchr = "2"
+flume = "0.11"
 
 [[bin]]
 name = "main"
 path = "src/main.rs"
+
+# Offline runner for the zombie-rate classifier over a billing-codes CSV (no network/DB deps).
+[[bin]]
+name = "classify_codes"
+path = "src/bin/classify_codes.rs"
 [build-dependencies]
 protobuf-codegen-pure = "2.28.0"
+
+# Local patch of the ClickHouse client: when the insert request task dies mid-stream the
+# upstream crate reports an opaque "channel closed" and drops the real server/HTTP error.
+# vendor/clickhouse/src/insert_formatted.rs::poll_ready surfaces the underlying error instead.
+[patch.crates-io]
+clickhouse = { path = "vendor/clickhouse" }

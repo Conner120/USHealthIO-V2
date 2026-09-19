@@ -15,4 +15,7 @@ export enum IDTYPE {
     PROVIDER = "prv",
     PROVIDER_GROUP = "prv_grp",
     PROVIDER_GROUP_PROVIDER = "pgp",
+    PROVIDER_ADDRESS = "prv_addr",
+    PROVIDER_LICENSE = "prv_lic",
+    PROVIDER_OTHER_IDENTIFIER = "prv_oid",
 }

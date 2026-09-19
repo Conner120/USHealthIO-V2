@@ -53,6 +53,16 @@ const BreadCrumbs = [
         name: "Plans",
         part: "insurance/plans",
         href: "/insurance/plans",
+    },
+    {
+        name: "Providers",
+        part: "providers",
+        href: "/providers",
+    },
+    {
+        name: "Enumeration",
+        part: "providers/enumeration",
+        href: "/providers/enumeration",
     }
 ]
 export default function RootLayout({children}: { children: React.ReactNode }) {

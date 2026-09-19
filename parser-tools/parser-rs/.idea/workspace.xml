@@ -12,22 +12,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c17e2de6-51e2-4444-85a3-1bb64e200b33" name="Changes" comment="fix: implement retry logic for RabbitMQ environment creation">
-      <change beforePath="$PROJECT_DIR$/../../apps/admin/app/insurance/companies/[insuranceCompanyId]/sources/_components/sourcesForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/admin/app/insurance/companies/[insuranceCompanyId]/sources/_components/sourcesForm.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/admin/app/insurance/companies/[insuranceCompanyId]/sources/new/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/admin/app/insurance/companies/[insuranceCompanyId]/sources/new/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/filePrep.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/filePrep.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/tasks/ImportCigna.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/tasks/ImportCigna.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../apps/hdas/src/tasks/taskRoot.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdas/src/tasks/taskRoot.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdsave/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdsave/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/cache.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/hash.ts" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../apps/hdsave/src/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/job-context.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/scylla.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../apps/hdsave/src/types.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../cql-schema/schema.sql" beforeDir="false" afterPath="$PROJECT_DIR$/../../cql-schema/schema.sql" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/file_root.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/file_root.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/types/bundled_code.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/bundled_code.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/types/in_network.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/in_network.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/types/negotiated_price_object.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/negotiated_price_object.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/types/negotiated_rates.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/negotiated_rates.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/provider_references.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/in_network/types/providers_object.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/providers_object.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/in_network/types/tax_identifier.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/in_network/types/tax_identifier.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -49,7 +42,6 @@
   </component>
   <component name="EmbeddingIndexingInfo">
     <option name="cachedIndexableFilesCount" value="28" />
-    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
   <component name="FileTemplateManagerImpl">
@@ -114,10 +106,10 @@
 }</component>
   <component name="RecapSpentCounter">
     <option name="endsOfQuotaMs" value="1772233206150" />
-    <option name="spentUsd" value="0.09116" />
+    <option name="spentUsd" value="0.0957525" />
   </component>
   <component name="RecapUselessUpdatesCounter">
-    <option name="suspendCountdown" value="2" />
+    <option name="suspendCountdown" value="1" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -222,6 +214,7 @@
       <workItem from="1771114810119" duration="4861000" />
       <workItem from="1771120683868" duration="672000" />
       <workItem from="1771121753431" duration="618000" />
+      <workItem from="1789692800128" duration="12227000" />
     </task>
     <task id="LOCAL-00001" summary="test">
       <option name="closed" value="true" />
@@ -287,7 +280,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/src/in_network/file_root.rs</url>
-          <line>391</line>
+          <line>269</line>
           <option name="timeStamp" value="27" />
         </line-breakpoint>
       </breakpoints>

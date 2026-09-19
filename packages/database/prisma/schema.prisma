@@ -238,16 +238,212 @@ model provider_group_provider {
   lastSeen        DateTime       @default(now())
   isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
+
+  @@index([providerId], name: "idx_pgp_providerId")
+  @@index([providerGroupId], name: "idx_pgp_providerGroupId")
 }
 
 model provider {
-  id                     String                    @id @db.VarChar(50)
-  providerNPI            String                    @unique @db.VarChar(20)
-  firstName              String?                   @db.VarChar(250)
-  lastName               String?                   @db.VarChar(250)
-  createdAt              DateTime                  @default(now())
-  createdBy              String                    @db.VarChar(50)
-  updatedAt              DateTime                  @updatedAt
-  updatedBy              String                    @db.VarChar(50)
-  providerGroupProviders provider_group_provider[]
+  id                               String                            @id @db.VarChar(50)
+  providerNPI                      String                            @unique @db.VarChar(20)
+  entityTypeCode                   EntityTypeCode
+  replacementNPI                   String?                           @db.VarChar(20)
+  ein                              String?                           @db.VarChar(20)
+  businessName                     String?                           @db.VarChar(250)
+  firstName                        String?                           @db.VarChar(250)
+  lastName                         String?                           @db.VarChar(250)
+  middleName                       String?                           @db.VarChar(100)
+  namePrefix                       String?                           @db.VarChar(10)
+  nameSuffix                       String?                           @db.VarChar(10)
+  credential                       String?                           @db.VarChar(50)
+  otherOrganizationName            String?                           @db.VarChar(250)
+  otherOrganizationNameTypeCode    OtherProviderNameTypeCode?
+  otherLastName                    String?                           @db.VarChar(250)
+  otherFirstName                   String?                           @db.VarChar(250)
+  otherMiddleName                  String?                           @db.VarChar(100)
+  otherNamePrefix                  String?                           @db.VarChar(10)
+  otherNameSuffix                  String?                           @db.VarChar(10)
+  otherCredential                  String?                           @db.VarChar(50)
+  otherLastNameTypeCode            OtherProviderNameTypeCode?
+  enumerationDate                  DateTime?
+  lastUpdateDate                   DateTime?
+  deactivationReasonCode           DeactivationReasonCode?
+  deactivationDate                 DateTime?
+  reactivationDate                 DateTime?
+  genderCode                       GenderCode?
+  isSoleProprietor                 SoleProprietorCode?
+  isOrganizationSubpart            SubpartCode?
+  parentOrganizationName           String?                           @db.VarChar(250)
+  parentOrganizationTIN            String?                           @db.VarChar(20)
+  certificationDate                DateTime?
+  authorizedOfficialLastName       String?                           @db.VarChar(250)
+  authorizedOfficialFirstName      String?                           @db.VarChar(250)
+  authorizedOfficialMiddleName     String?                           @db.VarChar(100)
+  authorizedOfficialTitle          String?                           @db.VarChar(100)
+  authorizedOfficialPhone          String?                           @db.VarChar(20)
+  authorizedOfficialNamePrefix     String?                           @db.VarChar(10)
+  authorizedOfficialNameSuffix     String?                           @db.VarChar(10)
+  authorizedOfficialCredential     String?                           @db.VarChar(50)
+  createdAt                        DateTime                          @default(now())
+  createdBy                        String                            @db.VarChar(50)
+  updatedAt                        DateTime                          @updatedAt
+  updatedBy                        String                            @db.VarChar(50)
+  deactivatedAt                    DateTime?
+  deactivatedBy                    String                            @db.VarChar(50)
+  archivedAt                       DateTime?
+  archivedBy                       String                            @db.VarChar(50)
+  providerGroupProviders           provider_group_provider[]
+  providerAddresses                providerAddress[]
+  providerLicenses                 providerLicense[]
+  providerTaxonomies               providerTaxonomy[]
+  providerOtherProviderIdentifiers providerOtherProviderIdentifier[]
+
+  @@index([entityTypeCode, lastName], name: "idx_provider_type_lastName")
+  @@index([entityTypeCode, businessName], name: "idx_provider_type_businessName")
+  @@index([entityTypeCode, updatedAt(sort: Desc)], name: "idx_provider_type_updated")
+  @@index([lastName], name: "idx_provider_lastName")
+  @@index([firstName], name: "idx_provider_firstName")
+  @@index([businessName], name: "idx_provider_businessName")
+  @@index([credential], name: "idx_provider_credential")
+  @@index([ein], name: "idx_provider_ein")
+  @@index([deactivationDate], name: "idx_provider_deactivationDate")
+}
+
+model providerAddress {
+  id          String              @id @db.VarChar(50)
+  provider    provider            @relation(fields: [providerId], references: [id])
+  providerId  String              @db.VarChar(50)
+  addressType ProviderAddressType
+  address1    String              @db.VarChar(250)
+  address2    String?             @db.VarChar(250)
+  city        String              @db.VarChar(100)
+  state       String              @db.VarChar(50)
+  zipCode     String              @db.VarChar(20)
+  country     String?             @db.VarChar(5)
+  phone       String?             @db.VarChar(20)
+  fax         String?             @db.VarChar(20)
+  createdAt   DateTime            @default(now())
+  createdBy   String              @db.VarChar(50)
+  updatedAt   DateTime            @updatedAt
+  updatedBy   String              @db.VarChar(50)
+  archivedAt  DateTime?
+  archivedBy  String              @db.VarChar(50)
+
+  @@index([providerId], name: "idx_providerAddress_providerId")
+  @@index([state], name: "idx_providerAddress_state")
+  @@index([zipCode], name: "idx_providerAddress_zipCode")
+  @@index([city, state], name: "idx_providerAddress_city_state")
+}
+
+model providerLicense {
+  id            String    @id @db.VarChar(50)
+  provider      provider  @relation(fields: [providerId], references: [id])
+  providerId    String    @db.VarChar(50)
+  licenseNumber String    @db.VarChar(100)
+  state         String    @db.VarChar(50)
+  createdAt     DateTime  @default(now())
+  createdBy     String    @db.VarChar(50)
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String    @db.VarChar(50)
+  archivedAt    DateTime?
+  archivedBy    String    @db.VarChar(50)
+
+  @@index([providerId], name: "idx_providerLicense_providerId")
+  @@index([state], name: "idx_providerLicense_state")
+}
+
+model providerTaxonomy {
+  id            String              @id @db.VarChar(50)
+  provider      provider            @relation(fields: [providerId], references: [id])
+  providerId    String              @db.VarChar(50)
+  taxonomyCode  String              @db.VarChar(20)
+  licenseNumber String?             @db.VarChar(100)
+  licenseState  String?             @db.VarChar(5)
+  isPrimary     PrimaryTaxonomyCode @default(X)
+  groupCode     String?             @db.VarChar(250)
+  createdAt     DateTime            @default(now())
+  createdBy     String              @db.VarChar(50)
+  updatedAt     DateTime            @updatedAt
+  updatedBy     String              @db.VarChar(50)
+  archivedAt    DateTime?
+  archivedBy    String              @db.VarChar(50)
+
+  @@index([providerId], name: "idx_providerTaxonomy_providerId")
+  @@index([taxonomyCode], name: "idx_providerTaxonomy_taxonomyCode")
+}
+
+model providerOtherProviderIdentifier {
+  id         String                          @id @db.VarChar(50)
+  provider   provider                        @relation(fields: [providerId], references: [id])
+  providerId String                          @db.VarChar(50)
+  name       String                          @db.VarChar(250)
+  typeCode   OtherProviderIdentifierTypeCode
+  state      String                          @db.VarChar(2)
+  issure     String                          @db.VarChar(250)
+  createdAt  DateTime                        @default(now())
+  createdBy  String                          @db.VarChar(50)
+  updatedAt  DateTime                        @updatedAt
+  updatedBy  String                          @db.VarChar(50)
+  archivedAt DateTime?
+  archivedBy String                          @db.VarChar(50)
+
+  @@index([providerId], name: "idx_providerOtherId_providerId")
+}
+
+enum ProviderAddressType {
+  MAILING
+  PRACTICE
+}
+
+enum EntityTypeCode {
+  INDIVIDUAL // 1
+  ORGANIZATION // 2
+}
+
+enum SoleProprietorCode {
+  X // Not Answered
+  Y // Yes
+  N // No
+}
+
+enum SubpartCode {
+  X // Not Answered
+  Y // Yes
+  N // No
+}
+
+enum GenderCode {
+  M // Male
+  F // Female
+}
+
+enum DeactivationReasonCode {
+  DT // Death
+  DB // Disbandment
+  FR // Fraud
+  OT // Other
+}
+
+enum OtherProviderNameTypeCode {
+  FORMER_NAME // 1 - Individual
+  PROFESSIONAL_NAME // 2 - Individual
+  DOING_BUSINESS_AS // 3 - Organization
+  FORMER_LEGAL_BUSINESS // 4 - Organization
+  OTHER_NAME // 5 - Both
+}
+
+enum PrimaryTaxonomyCode {
+  X // Not Answered
+  Y // Yes
+  N // No
+}
+
+enum OtherProviderIdentifierTypeCode {
+  OTHER
+  MEDICARE_UPIN
+  MEDICAR_ID_TYPE_UNSPECIFIED
+  MEDICAID
+  MEDICARE_OSCAR_CERTIFICATION
+  MEDICARE_NSC
+  MEDICARE_PIN
 }
