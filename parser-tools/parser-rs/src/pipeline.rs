@@ -13,18 +13,18 @@
 //!            none:        count only
 //! ```
 //!
-//! For ClickHouse the `provider_references` and `in_network` sections are independent tables, so a
-//! single scan pass interleaves both and workers never wait. RabbitMQ needs every provider group
-//! resolved before the first rate message, so it runs two passes (the second pass re-scans at
-//! >1 GB/s without decoding, which is negligible next to the parse itself).
+//! Both ClickHouse and RabbitMQ need every provider group resolved before the first rate (the v2
+//! ClickHouse schema keys `rate_seen` by TIN hash, not by the file-local provider_group_id), so
+//! they run two passes: pass 1 collects `provider_references`, pass 2 streams `in_network`. The
+//! second pass re-scans at >1 GB/s without decoding, which is negligible next to the parse itself.
 
 use crate::config::{Config, SinkKind};
 use crate::fetch::{http_client, resolve_location};
 use crate::model::{FileHeader, InNetworkObject, ProviderReferenceObject};
-use crate::scan::{scan, Element, ScanError, ScanStats, Section};
-use crate::sink::clickhouse::{ClickHouseSink, ClickHouseWriter};
+use crate::scan::{scan, scan_header, Element, ScanError, ScanStats, Section};
+use crate::sink::clickhouse::{seen_on_for, ClickHouseSink, ClickHouseWriter};
 use crate::sink::rabbitmq::RabbitMqSink;
-use memmap2::{Advice, Mmap};
+use memmap2::{Advice, Mmap, UncheckedAdvice};
 use std::fs::File;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -64,10 +64,16 @@ struct Progress {
     provider_refs: AtomicU64,
     in_network: AtomicU64,
     prices: AtomicU64,
+    /// ClickHouse: `rate_seen` rows (one per price × TIN). Other sinks: price × provider ref pairs.
     rate_rows: AtomicU64,
+    /// ClickHouse: distinct `rates` rows written this job. Other sinks: provider group rows.
     group_rows: AtomicU64,
     /// Rate rows dropped by `ZOMBIE_FILTER` (ClickHouse sink only).
     zombie_skipped: AtomicU64,
+    /// `provider_references[]` ids with no provider_reference element (ClickHouse sink only).
+    unresolved_refs: AtomicU64,
+    /// Bytes of mmap page cache handed back to the kernel (see `Shared::release_scanned_pages`).
+    released_bytes: AtomicU64,
     errors: AtomicU64,
 }
 
@@ -97,7 +103,61 @@ struct Shared {
     cfg: Config,
     progress: Progress,
     total_bytes: u64,
+    /// High-water mark (file offset) of pages already handed back to the kernel.
+    released_upto: AtomicU64,
 }
+
+impl Shared {
+    /// Tells the kernel it can drop the clean page-cache pages we have already scanned past.
+    ///
+    /// Without this the resident set grows to the whole file: every page the scanner touches stays
+    /// resident until memory pressure evicts it, so a 50 GB file shows 50 GB of RSS. The mapping is
+    /// a read-only view of a file, so every page is clean and `MADV_DONTNEED` can only cost a
+    /// re-read if someone touches the range again — never data loss.
+    ///
+    /// Workers lag the scanner by up to `queue_depth` elements, so we release only up to
+    /// `cursor - release_lag_bytes`. A worker that is further behind than that re-faults the pages
+    /// it needs straight back from the file, which is correct, just slower.
+    fn release_scanned_pages(&self, cursor: usize) {
+        let chunk = self.cfg.mmap_release_bytes;
+        if chunk == 0 {
+            return;
+        }
+        let lag = self.cfg.mmap_release_lag_bytes;
+        let target = (cursor as u64).saturating_sub(lag);
+        let prev = self.released_upto.load(Ordering::Relaxed);
+        if target < prev.saturating_add(chunk) {
+            return;
+        }
+        // Align down: madvise needs page boundaries, and rounding down never drops a page that is
+        // still partly ahead of the cursor.
+        let aligned = target & !(RELEASE_ALIGN - 1);
+        if aligned <= prev {
+            return;
+        }
+        if self
+            .released_upto
+            .compare_exchange(prev, aligned, Ordering::Relaxed, Ordering::Relaxed)
+            .is_err()
+        {
+            return; // another caller got there first
+        }
+        let len = (aligned - prev) as usize;
+        // SAFETY: `buf` maps a read-only file. Every page is clean, so discarding it cannot lose
+        // writes; a later access simply faults it back in from the file.
+        unsafe {
+            let _ = self
+                .buf
+                .unchecked_advise_range(UncheckedAdvice::DontNeed, prev as usize, len);
+        }
+        self.progress.add(&self.progress.released_bytes, len as u64);
+    }
+}
+
+/// Alignment for `MADV_DONTNEED` ranges. 64 KiB is a multiple of every page size we run on
+/// (4 KiB x86-64, 16 KiB Apple silicon, 4/16/64 KiB aarch64 Linux), and rounding the release
+/// point *down* to it is always safe — it just leaves at most one boundary chunk resident.
+const RELEASE_ALIGN: u64 = 64 * 1024;
 
 pub async fn run(cfg: &Config, path: &str, job_id: &str) -> Result<(), PipelineError> {
     let file = File::open(path).map_err(|e| perr(format!("open {}: {}", path, e)))?;
@@ -118,6 +178,7 @@ pub async fn run(cfg: &Config, path: &str, job_id: &str) -> Result<(), PipelineE
         cfg: cfg.clone(),
         progress: Progress::default(),
         total_bytes,
+        released_upto: AtomicU64::new(0),
     });
     let started = Instant::now();
     // Diagnostic: measure the structural scan alone (no parsing, no sink).
@@ -145,7 +206,7 @@ pub async fn run(cfg: &Config, path: &str, job_id: &str) -> Result<(), PipelineE
     ticker.abort();
     let p = &shared.progress;
     println!(
-        "parser: done in {:.2?} — {} provider_references, {} in_network objects, {} prices, {} rate rows, {} provider_group rows, {} zombie rows skipped ({:?}), {} element errors",
+        "parser: done in {:.2?} — {} provider_references, {} in_network objects, {} prices, {} rate rows, {} distinct rates / provider_group rows, {} zombie rows skipped ({:?}), {} unresolved provider refs, {} element errors",
         started.elapsed(),
         p.get(&p.provider_refs),
         p.get(&p.in_network),
@@ -154,8 +215,12 @@ pub async fn run(cfg: &Config, path: &str, job_id: &str) -> Result<(), PipelineE
         p.get(&p.group_rows),
         p.get(&p.zombie_skipped),
         shared.cfg.zombie_filter,
+        p.get(&p.unresolved_refs),
         p.get(&p.errors),
     );
+    if p.get(&p.released_bytes) > 0 {
+        println!("parser: released {:.2} GB of scanned mmap pages", p.get(&p.released_bytes) as f64 / 1e9);
+    }
     result
 }
 
@@ -164,27 +229,62 @@ pub async fn run(cfg: &Config, path: &str, job_id: &str) -> Result<(), PipelineE
 async fn run_clickhouse(shared: Arc<Shared>, job_id: &str) -> Result<(), PipelineError> {
     let sink = ClickHouseSink::connect(&shared.cfg.clickhouse, job_id).await?;
     println!(
-        "sink: clickhouse {} db={} ({} rows / {} MiB per INSERT per worker)",
+        "sink: clickhouse {} db={} ({} rows / {} MiB per INSERT per worker, {})",
         shared.cfg.clickhouse.url,
         shared.cfg.clickhouse.database,
         shared.cfg.clickhouse.insert_max_rows,
-        shared.cfg.clickhouse.insert_max_bytes / 1048576
+        shared.cfg.clickhouse.insert_max_bytes / 1048576,
+        shared.cfg.clickhouse.retry.describe()
     );
-    let (header, stats) = run_pass(
-        shared.clone(),
-        &[Section::ProviderReferences, Section::InNetwork],
-        || WorkerSink::ClickHouse(sink.writer(shared.cfg.zombie_filter)),
-    )
+    // Pass 1: provider references, written as they are parsed. The writer holds only the
+    // batches it has yet to send plus the local id -> TIN hash map that pass 2 needs; the
+    // reference objects themselves are dropped as soon as their rows are queued, so this pass
+    // does not grow with the size of the provider_references section.
+    //
+    // `seen_on` comes from the file header, which the scanner fills before the first element, so
+    // it is read from a shared cell once pass 1 has started rather than after it finishes.
+    // The publication date has to be known before the first row is written, so probe the header
+    // first (cheap: it stops at the first array once it has the date).
+    let seen_on = seen_on_for(&scan_header(&shared.buf)?);
+    let (tx, mut rx) = mpsc::channel::<Parsed>(shared.cfg.queue_depth);
+    let mut writer = sink.provider_group_writer(seen_on);
+    let collector: JoinHandle<Result<(u64, u64), PipelineError>> = tokio::spawn(async move {
+        while let Some(p) = rx.recv().await {
+            if let Parsed::ProviderReference(r) = p {
+                writer.write(&r).await?;
+            }
+        }
+        Ok(writer.finish().await?)
+    });
+    let (header, ref_stats) = run_pass(shared.clone(), &[Section::ProviderReferences], || {
+        WorkerSink::Forward(tx.clone())
+    })
+    .await?;
+    drop(tx);
+    let (tin_rows, seen_rows) = collector.await.map_err(|e| perr(format!("collector: {}", e)))??;
+    println!(
+        "clickhouse: pass 1 done — {} provider_references → {} distinct TINs, {} provider_group_seen rows (seen_on {})",
+        ref_stats.provider_reference_elements, tin_rows, seen_rows, seen_on
+    );
+
+    // Pass 2: rates.
+    let (_, stats) = run_pass(shared.clone(), &[Section::InNetwork], || {
+        WorkerSink::ClickHouse(sink.writer(shared.cfg.zombie_filter, seen_on))
+    })
     .await?;
     let p = &shared.progress;
     sink.file_meta(
         &header,
-        stats.provider_reference_elements,
+        ref_stats.provider_reference_elements,
         stats.in_network_elements,
         p.get(&p.rate_rows),
     )
     .await?;
-    println!("clickhouse: {} INSERT statements completed", sink.statements());
+    println!(
+        "clickhouse: {} INSERT statements completed, {} distinct rates",
+        sink.statements(),
+        sink.distinct_rates()
+    );
     Ok(())
 }
 
@@ -255,6 +355,8 @@ async fn run_pass(
     mut make_sink: impl FnMut() -> WorkerSink,
 ) -> Result<(FileHeader, ScanStats), PipelineError> {
     let (tx, rx) = flume::bounded::<Element>(shared.cfg.queue_depth);
+    // Each pass walks the file from the start again, so the release cursor resets with it.
+    shared.released_upto.store(0, Ordering::Relaxed);
 
     let mut workers = Vec::with_capacity(shared.cfg.threads);
     for id in 0..shared.cfg.threads {
@@ -269,9 +371,14 @@ async fn run_pass(
         let shared = shared.clone();
         tokio::task::spawn_blocking(move || {
             scan(&shared.buf, sections, |el| {
+                let end = el.end;
                 tx.send(el).map_err(|_| ScanError {
                     message: "all workers stopped".to_string(),
-                })
+                })?;
+                // Hand back everything we are safely past, so RSS stays flat instead of growing
+                // to the size of the file.
+                shared.release_scanned_pages(end);
+                Ok(())
             })
         })
     };
@@ -332,10 +439,10 @@ async fn worker(
                 }
                 p.add(&p.provider_refs, 1);
                 match &mut sink {
-                    WorkerSink::ClickHouse(w) => {
-                        let before = w.group_rows;
-                        w.provider_reference(&r).await?;
-                        p.add(&p.group_rows, w.group_rows - before);
+                    WorkerSink::ClickHouse(_) => {
+                        // ClickHouse runs provider references through pass 1 (Forward); a rates
+                        // writer never sees this section.
+                        return Err(perr("provider_reference element reached a ClickHouse rates writer"));
                     }
                     WorkerSink::Forward(tx) => {
                         if tx.send(Parsed::ProviderReference(r)).await.is_err() {
@@ -365,10 +472,12 @@ async fn worker(
                 p.add(&p.prices, prices);
                 match &mut sink {
                     WorkerSink::ClickHouse(w) => {
-                        let (before, skipped_before) = (w.rate_rows, w.zombie_skipped);
+                        let before = (w.rate_rows, w.seen_rows, w.zombie_skipped, w.unresolved_refs);
                         w.in_network(&obj).await?;
-                        p.add(&p.rate_rows, w.rate_rows - before);
-                        p.add(&p.zombie_skipped, w.zombie_skipped - skipped_before);
+                        p.add(&p.group_rows, w.rate_rows - before.0);
+                        p.add(&p.rate_rows, w.seen_rows - before.1);
+                        p.add(&p.zombie_skipped, w.zombie_skipped - before.2);
+                        p.add(&p.unresolved_refs, w.unresolved_refs - before.3);
                     }
                     WorkerSink::Forward(tx) => {
                         if tx.send(Parsed::InNetwork(obj)).await.is_err() {
@@ -383,9 +492,9 @@ async fn worker(
     }
 
     if let WorkerSink::ClickHouse(w) = sink {
-        let (rates, groups) = w.finish().await?;
+        let (rates, seen) = w.finish().await?;
         if cfg.threads <= 32 {
-            println!("worker {}: finished ({} rate rows, {} provider_group rows)", id, rates, groups);
+            println!("worker {}: finished ({} rates rows, {} rate_seen rows)", id, rates, seen);
         }
     }
     Ok(())

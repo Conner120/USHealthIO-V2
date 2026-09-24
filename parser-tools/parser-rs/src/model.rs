@@ -20,6 +20,8 @@ pub struct FileHeader {
     pub plan_sponsor_name: Option<String>,
     pub plan_market_type: Option<String>,
     pub version: String,
+    /// The file's own publication date (`YYYY-MM-DD`); becomes `seen_on` on the seen tables.
+    pub last_updated_on: Option<String>,
 }
 
 impl FileHeader {
@@ -35,6 +37,7 @@ impl FileHeader {
             "plan_sponsor_name" => self.plan_sponsor_name = Some(value),
             "plan_market_type" => self.plan_market_type = Some(value),
             "version" => self.version = value,
+            "last_updated_on" => self.last_updated_on = Some(value),
             _ => {}
         }
     }

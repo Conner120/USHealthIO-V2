@@ -59,6 +59,10 @@ TableGroup validity [note: 'Current state, written by the post-scan pass only.']
   provider_validity
 }
 
+TableGroup operations [note: 'What the job-controller nodes did.'] {
+  job_runs
+}
+
 // ── Discovery (job-controller) ─────────────────────────────────────────────
 
 Table mrf_file_plans {
@@ -287,6 +291,46 @@ Table provider_validity {
   '''
 }
 
+// ── Operations (job-controller) ────────────────────────────────────────────
+
+Table job_runs {
+  run_id         varchar  [pk, note: 'FileJob.id / Task.id. For a file job this is also insurance_scan_job_id']
+  kind           varchar  [note: "LowCardinality: 'file' | 'task'"]
+  node_id        varchar  [note: 'LowCardinality: which node ran it']
+  scan_job_id    varchar  [note: "Top-level scan job ('' if none)"]
+  label          varchar  [note: 'File name, or task kind']
+  url            varchar  [note: "File url ('' for tasks)"]
+  tier           varchar  [note: "LowCardinality size tier ('' for tasks)"]
+  status         varchar  [note: "LowCardinality: 'running' | 'done' | 'failed'"]
+  step           varchar  [note: "LowCardinality: downloading | decompressing | parsing | cleaning | ''"]
+  attempts       int      [note: 'UInt32: reassignments before this run']
+  size_bytes     bigint   [note: 'UInt64: download size as queued (compressed for .gz)']
+  download_bytes bigint   [note: 'UInt64: bytes actually downloaded (0 until staged)']
+  json_bytes     bigint   [note: 'UInt64: uncompressed size (0 until staged)']
+  staging_bytes  bigint   [note: 'UInt64: footprint reserved before the job started']
+  started_at     datetime [note: 'DateTime64(3)']
+  updated_at     datetime [note: 'DateTime64(3) — ReplacingMergeTree version']
+  ended_at       datetime [null, note: 'DateTime64(3)']
+  duration_ms    bigint   [note: 'UInt64']
+  error          varchar  [note: "CODEC(ZSTD(1)); '' unless failed"]
+  log_lines      int      [note: 'UInt32: lines produced (may exceed what `log` holds)']
+  log            varchar  [note: 'CODEC(ZSTD(3)): console output, tail-truncated to JOB_LOG_MAX_BYTES']
+
+  indexes {
+    run_id [pk, note: 'ORDER BY: one row per operation after merge']
+    status      [name: 'idx_status',  note: 'skip index: set(4)']
+    node_id     [name: 'idx_node',    note: 'skip index: set(0)']
+    scan_job_id [name: 'idx_scanjob', note: 'skip index: bloom_filter']
+  }
+  Note: '''
+    ENGINE = ReplacingMergeTree(updated_at), PARTITION BY toYYYYMM(started_at). Read with FINAL.
+    One row per file job / management task. Written at start, on each step transition and at the
+    end, so `SELECT ... FINAL` is the live status of every job across every node. `log` is the
+    same console output the dashboard shows, kept here so it survives the node restart that
+    clears the local log directory.
+  '''
+}
+
 // ── Join paths ─────────────────────────────────────────────────────────────
 
 // observation -> what was seen
@@ -308,6 +352,9 @@ Ref: rate_history.provider_group_hash > provider_groups.provider_group_hash
 
 // which plans a parsed file applies to
 Ref: mrf_file_plans.file_job_id > mrf_files.insurance_scan_job_id
+
+// a file job's run record -> what the parser wrote for it (same id)
+Ref: job_runs.run_id > mrf_files.insurance_scan_job_id
 
 // current validity -> the rate holding the slot and the provider
 Ref: rate_validity.rate_hash           > rates.rate_hash

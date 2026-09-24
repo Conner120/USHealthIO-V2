@@ -2,6 +2,7 @@ import { enqueueFile, enqueueTasksDeduped, withUrlClaim, type IndexScanPayload }
 import type { Task } from "../management/task";
 import { runIndexScan } from "./index";
 import type { DiscoveredFile } from "./types";
+import * as runlog from "../../lib/runlog";
 import { FilePlanBatch, fileJobIdFor, rememberFileJob } from "./file-plans";
 
 export type IndexScanTask = Task<"index-scan">;
@@ -41,6 +42,7 @@ export async function processIndexScan(task: IndexScanTask): Promise<IndexScanRe
     );
     result.followUps += r.enqueued;
     result.duplicates += r.duplicates;
+    runlog.append(task.id, `fanned out ${r.enqueued} follow-up scans (${r.duplicates} already seen)`);
   }
 
   for (const f of found) {
@@ -68,6 +70,7 @@ export async function processIndexScan(task: IndexScanTask): Promise<IndexScanRe
 
   result.planLinks = await plans.flush();
   console.log(`[index-scan] ${task.payload.type} ${task.id} (scan job ${scanJobId}):`, result);
+  runlog.append(task.id, `${task.payload.type} done: ${JSON.stringify(result)}`);
   return result;
 }
 

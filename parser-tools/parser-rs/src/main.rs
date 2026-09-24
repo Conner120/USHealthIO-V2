@@ -1,6 +1,7 @@
 mod allowlist;
 mod config;
 mod fetch;
+mod hashing;
 mod kafka;
 mod model;
 mod pipeline;

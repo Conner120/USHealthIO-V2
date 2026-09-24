@@ -22,4 +22,5 @@ export { withUrlClaim, claimUrl, markSeen, releaseUrl, isSeen, seenCount, seenSc
 
 // Observability
 export { getQueueStatus, type QueueStatus, type FileQueueStatus, type TaskQueueStatus } from "./status";
+export { publishActivity, clearActivity, readClusterActivity, activityKey, type NodeActivity, type JobActivity } from "./activity";
 export { encode, decode } from "./codec";

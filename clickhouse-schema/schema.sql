@@ -35,6 +35,17 @@
 --   name/description are NOT part of rate_hash (they are per-code labels that carriers word
 --   differently); the latest wording is kept on `rates` (anyLast).
 --
+--   Verify any row in SQL (parser-rs/src/hashing.rs produces the same strings):
+--     rate_hash = xxHash64(concat(billing_code_type,'|',billing_code_type_version,'|',billing_code,'|',
+--                   negotiation_arrangement,'|',negotiated_type,'|',
+--                   if(negotiated_rate IS NULL,'',toDecimalString(negotiated_rate,4)),'|',
+--                   billing_class,'|',setting,'|',severity_of_illness,'|',
+--                   arrayStringConcat(service_code,','),'|',arrayStringConcat(billing_code_modifier,','),'|',
+--                   arrayStringConcat(additional_information,',')))
+--     billing_key_hash = xxHash64(concat(billing_code_type,'|',billing_code_type_version,'|',billing_code,'|',
+--                   billing_class,'|',setting,'|',severity_of_illness,'|',arrayStringConcat(billing_code_modifier,',')))
+--     provider_group_hash = xxHash64(concat(tin_type,'|',tin_value))
+--
 -- Validity (supersede)
 --   billing_key_hash identifies a pricing *slot*: what a provider is paid for a code, in a class /
 --   setting / severity, with these modifiers. Everything else on the rate — negotiated_rate,
@@ -78,6 +89,46 @@ CREATE TABLE IF NOT EXISTS health.mrf_file_plans
 )
 ENGINE = ReplacingMergeTree(discovered_at)
 ORDER BY (file_url, reporting_entity_name, plan_id, plan_name);
+
+-- Every operation a job-controller node runs: one row per file job (download -> decompress ->
+-- parse) and per management task (index scans). The node writes a row when the operation starts,
+-- on each step transition and when it ends; ReplacingMergeTree(updated_at) collapses those to the
+-- latest state, so a plain `SELECT ... FINAL` is the current status of every job.
+--
+-- `log` holds that operation's console output — the same text the dashboard shows when a row is
+-- expanded — so the record survives the node restart that clears the local log directory. It is
+-- the tail when the output is longer than JOB_LOG_MAX_BYTES.
+CREATE TABLE IF NOT EXISTS health.job_runs
+(
+    run_id          String,                        -- FileJob.id / Task.id (= insurance_scan_job_id for file jobs)
+    kind            LowCardinality(String),        -- 'file' | 'task'
+    node_id         LowCardinality(String),
+    scan_job_id     String,                        -- top-level scan job this belongs to ('' if none)
+    label           String,                        -- file name, or task kind
+    url             String,                        -- file url ('' for tasks)
+    tier            LowCardinality(String),        -- size tier ('' for tasks)
+    status          LowCardinality(String),        -- 'running' | 'done' | 'failed'
+    step            LowCardinality(String),        -- 'downloading' | 'decompressing' | 'parsing' | 'cleaning' | ''
+    attempts        UInt32,                        -- times this job was reassigned before this run
+    size_bytes      UInt64,                        -- download size as queued (compressed for .gz)
+    download_bytes  UInt64,                        -- bytes actually downloaded (0 until staged)
+    json_bytes      UInt64,                        -- uncompressed size (0 until staged)
+    staging_bytes   UInt64,                        -- footprint reserved before the job started
+    started_at      DateTime64(3),
+    updated_at      DateTime64(3),                 -- ReplacingMergeTree version
+    ended_at        Nullable(DateTime64(3)),
+    duration_ms     UInt64,
+    error           String CODEC(ZSTD(1)),         -- '' unless status = 'failed'
+    log_lines       UInt32,                        -- lines produced (may exceed what `log` holds)
+    log             String CODEC(ZSTD(3)),         -- console output, tail-truncated
+
+    INDEX idx_status  status      TYPE set(4) GRANULARITY 1,
+    INDEX idx_node    node_id     TYPE set(0) GRANULARITY 1,
+    INDEX idx_scanjob scan_job_id TYPE bloom_filter(0.01) GRANULARITY 4
+)
+ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(started_at)
+ORDER BY run_id;
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- Parsed output (parser-rs)
@@ -332,21 +383,24 @@ ORDER BY (reporting_entity_name, provider_group_hash);
 -- The v1 shape, for queries that want one wide row per observation.
 CREATE VIEW IF NOT EXISTS health.in_network_rates AS
 SELECT
-    s.insurance_scan_job_id,
-    s.seen_on,
-    s.expiration_date,
-    s.rate_hash,
-    s.billing_key_hash,
-    s.provider_group_hash,
-    r.billing_code_type, r.billing_code_type_version, r.billing_code, r.name, r.description,
-    r.negotiation_arrangement, r.negotiated_type, r.negotiated_rate,
-    r.billing_class, r.setting, r.severity_of_illness,
-    r.service_code, r.billing_code_modifier, r.additional_information,
-    r.zombie_verdict, r.zombie_rule,
-    p.tin_type, p.tin_value, p.business_name,
-    g.provider_group_id, g.npi, g.network_name
+    s.insurance_scan_job_id AS insurance_scan_job_id,
+    s.seen_on AS seen_on,
+    s.expiration_date AS expiration_date,
+    s.rate_hash AS rate_hash,
+    s.billing_key_hash AS billing_key_hash,
+    s.provider_group_hash AS provider_group_hash,
+    r.billing_code_type AS billing_code_type, r.billing_code_type_version AS billing_code_type_version,
+    r.billing_code AS billing_code, r.name AS name, r.description AS description,
+    r.negotiation_arrangement AS negotiation_arrangement, r.negotiated_type AS negotiated_type,
+    r.negotiated_rate AS negotiated_rate,
+    r.billing_class AS billing_class, r.setting AS setting, r.severity_of_illness AS severity_of_illness,
+    r.service_code AS service_code, r.billing_code_modifier AS billing_code_modifier,
+    r.additional_information AS additional_information,
+    r.zombie_verdict AS zombie_verdict, r.zombie_rule AS zombie_rule,
+    p.tin_type AS tin_type, p.tin_value AS tin_value, p.business_name AS business_name,
+    g.provider_group_id AS provider_group_id, g.npi AS npi, g.network_name AS network_name
 FROM health.rate_seen AS s
-INNER JOIN health.rates           FINAL AS r ON r.rate_hash = s.rate_hash
-INNER JOIN health.provider_groups FINAL AS p ON p.provider_group_hash = s.provider_group_hash
+INNER JOIN health.rates           AS r FINAL ON r.rate_hash = s.rate_hash
+INNER JOIN health.provider_groups AS p FINAL ON p.provider_group_hash = s.provider_group_hash
 INNER JOIN health.provider_group_seen AS g
     ON g.provider_group_hash = s.provider_group_hash AND g.insurance_scan_job_id = s.insurance_scan_job_id;

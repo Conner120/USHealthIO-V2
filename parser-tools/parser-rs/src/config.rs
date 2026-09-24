@@ -79,15 +79,22 @@ pub struct ClickHouseConfig {
     pub database: String,
     pub user: String,
     pub password: String,
+    /// v2 content-addressed tables (see clickhouse-schema/schema.sql).
     pub table_rates: String,
+    pub table_rate_seen: String,
     pub table_provider_groups: String,
+    pub table_provider_group_seen: String,
     pub table_files: String,
+    /// Canonical URL of the file being parsed, recorded on mrf_files. Empty when unknown.
+    pub file_url: String,
     /// Rows buffered per `INSERT` before the client ends the statement and starts a new one.
     pub insert_max_rows: u64,
     /// Uncompressed bytes buffered per `INSERT` before it is ended.
     pub insert_max_bytes: u64,
-    /// Optional wall-clock cap per `INSERT`. `None` = size-bounded only.
-    pub insert_period: Option<Duration>,
+    /// Retry policy applied to every insert. Unlimited by default.
+    pub retry: crate::sink::retry::RetryPolicy,
+    /// Mirror of `Config::rate_dedup_max`, so the sink does not need the whole Config.
+    pub rate_dedup_max: usize,
     /// Request body compression: `lz4` (cheap CPU), `zstd` / `zstd:<level>` (fewer bytes on the
     /// wire — pick this when the link to ClickHouse is the bottleneck), or `none`.
     pub compression: CompressionKind,
@@ -130,6 +137,12 @@ pub struct Config {
     pub max_element_errors: u64,
     /// Seconds between progress lines.
     pub progress_secs: u64,
+    /// Release scanned mmap pages back to the kernel in chunks of this many bytes (0 = never).
+    /// Without it the resident set grows to the size of the whole file.
+    pub mmap_release_bytes: u64,
+    /// How far behind the scanner to keep those pages, so workers still reading older elements
+    /// do not have to fault them back in.
+    pub mmap_release_lag_bytes: u64,
 }
 
 fn var_or(key: &str, default: &str) -> String {
@@ -183,7 +196,13 @@ impl Config {
             _ => SinkKind::ClickHouse,
         };
 
-        let extra_settings = env::var("CLICKHOUSE_SETTINGS")
+        // Server-side socket read timeout for our INSERTs. The default (30s on this cluster) is
+        // what produced `Code: 209 SOCKET_TIMEOUT` when a statement went quiet; batches are no
+        // longer held open, but a slow client link should not kill an in-flight INSERT either.
+        // Anything in CLICKHOUSE_SETTINGS wins, so this stays overridable.
+        let receive_timeout = parse_or::<u64>("CLICKHOUSE_RECEIVE_TIMEOUT_SECS", 600);
+
+        let extra_settings: Vec<(String, String)> = env::var("CLICKHOUSE_SETTINGS")
             .ok()
             .map(|s| {
                 s.split(',')
@@ -208,24 +227,45 @@ impl Config {
                 database: var_or("CLICKHOUSE_DATABASE", "health"),
                 user: var_or("CLICKHOUSE_USER", "default"),
                 password: var_or("CLICKHOUSE_PASSWORD", ""),
-                table_rates: var_or("CLICKHOUSE_TABLE_RATES", "in_network_rates"),
+                table_rates: var_or("CLICKHOUSE_TABLE_RATES", "rates"),
+                table_rate_seen: var_or("CLICKHOUSE_TABLE_RATE_SEEN", "rate_seen"),
                 table_provider_groups: var_or(
                     "CLICKHOUSE_TABLE_PROVIDER_GROUPS",
                     "provider_groups",
                 ),
+                table_provider_group_seen: var_or(
+                    "CLICKHOUSE_TABLE_PROVIDER_GROUP_SEEN",
+                    "provider_group_seen",
+                ),
                 table_files: var_or("CLICKHOUSE_TABLE_FILES", "mrf_files"),
-                insert_max_rows: parse_or("CLICKHOUSE_INSERT_MAX_ROWS", 500_000),
+                file_url: var_or("FILE_URL", ""),
+                // Rows are buffered in memory so a failed batch can be re-sent, so this also
+                // bounds per-worker memory: rows x workers x ~200 B.
+                insert_max_rows: parse_or("CLICKHOUSE_INSERT_MAX_ROWS", 100_000),
                 insert_max_bytes: parse_or("CLICKHOUSE_INSERT_MAX_BYTES", 256 * 1024 * 1024),
-                insert_period: secs_opt("CLICKHOUSE_INSERT_PERIOD_SECS", None),
+                    rate_dedup_max: parse_or("PARSER_RATE_DEDUP_MAX", 5_000_000),
+                retry: crate::sink::retry::RetryPolicy {
+                    max_retries: parse_or("CLICKHOUSE_MAX_RETRIES", 0),
+                    abort_after: secs_opt("CLICKHOUSE_RETRY_ABORT_SECS", None),
+                    base: Duration::from_millis(parse_or("CLICKHOUSE_RETRY_BASE_MS", 500)),
+                    max: Duration::from_millis(parse_or("CLICKHOUSE_RETRY_MAX_MS", 60_000)),
+                },
                 compression: CompressionKind::parse(&var_or(
                     "CLICKHOUSE_COMPRESSION",
                     // Legacy switch from the first version of this sink.
                     &var_or("CLICKHOUSE_COMPRESSION_LZ4", "lz4"),
                 )),
                 validate_schema: bool_or("CLICKHOUSE_VALIDATE_SCHEMA", false),
-                send_timeout: secs_opt("CLICKHOUSE_SEND_TIMEOUT_SECS", Some(60)),
-                end_timeout: secs_opt("CLICKHOUSE_END_TIMEOUT_SECS", Some(600)),
-                extra_settings,
+                // Generous: a busy server merging parts can take minutes to ack a large INSERT,
+                // and losing the batch to an impatient client timeout only makes it retry.
+                send_timeout: secs_opt("CLICKHOUSE_SEND_TIMEOUT_SECS", Some(300)),
+                end_timeout: secs_opt("CLICKHOUSE_END_TIMEOUT_SECS", Some(1800)),
+                extra_settings: {
+                    let mut v = vec![("receive_timeout".to_string(), receive_timeout.to_string())];
+                    // User-supplied settings are appended last so they override the default above.
+                    v.extend(extra_settings);
+                    v
+                },
             },
             rabbitmq: RabbitMqConfig {
                 host: var_or("RABBITMQ_HOST", "localhost"),
@@ -245,6 +285,8 @@ impl Config {
             location_retries: parse_or("PARSER_LOCATION_RETRIES", 3),
             max_element_errors: parse_or("PARSER_MAX_ELEMENT_ERRORS", 1000),
             progress_secs: parse_or("PARSER_PROGRESS_SECS", 5).max(1),
+            mmap_release_bytes: parse_or::<u64>("PARSER_MMAP_RELEASE_MB", 64) * 1024 * 1024,
+            mmap_release_lag_bytes: parse_or::<u64>("PARSER_MMAP_RELEASE_LAG_MB", 16) * 1024 * 1024,
         }
     }
 }

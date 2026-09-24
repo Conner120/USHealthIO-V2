@@ -11,6 +11,14 @@ import { config } from "../src/config";
 const db = config.clickhouse.database;
 const quoted = `\`${db}\``;
 
+// `health` is production and `health-dev` is shared; the script only ever CREATEs (never drops),
+// but even that is not something to run against them by accident. Require --allow-prod.
+const PROTECTED = new Set(["health", "health-dev"]);
+if (PROTECTED.has(db) && !process.argv.includes("--allow-prod")) {
+  console.error(`refusing to apply schema to protected database "${db}" (pass --allow-prod to override; use CLICKHOUSE_DATABASE=health-ai for test runs)`);
+  process.exit(2);
+}
+
 const sql = (await Bun.file(new URL("../../../clickhouse-schema/schema.sql", import.meta.url)).text())
   .replace(/--.*$/gm, "")
   .replace(/\bhealth\./g, `${quoted}.`)

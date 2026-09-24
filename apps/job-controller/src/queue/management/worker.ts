@@ -1,5 +1,7 @@
 import { config } from "../../config";
 import { finishTask } from "@repo/queue";
+import * as records from "../../lib/job-records";
+import * as runlog from "../../lib/runlog";
 import type { ManagementQueue, Task } from "./task";
 import { processIndexScan, type IndexScanTask } from "../index-scan";
 
@@ -29,6 +31,11 @@ function slotFreed(): void {
   wake = null;
 }
 
+/** Wake the poll loop now (shutdown), so it does not sit out the poll interval. */
+export function wakeNow(): void {
+  slotFreed();
+}
+
 /** Resolves when a task finishes or after `ms`, whichever comes first. */
 export function waitForSlotOrTimeout(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -43,9 +50,26 @@ export function hasFreeSlot(): boolean {
 
 /** Launch a task in the background. Never awaited by the poll loop. */
 export function startTask(task: Task, queue: ManagementQueue): void {
+  let failed = false;
+  let error: unknown;
+  const startedAt = new Date();
+  const base = {
+    id: task.id,
+    kind: "task" as const,
+    label: task.kind,
+    scanJobId: task.scanJobId ?? task.id,
+    attempts: task.attempts,
+    startedAt,
+  };
+  runlog.begin(task.id, "task", task.kind);
+  runlog.append(task.id, `start ${task.kind} ${JSON.stringify(task.payload)}`);
+  records.report({ ...base, status: "running" });
   const run = processTask(task)
     .catch(async (err) => {
       console.error(`[mgmt] task ${task.id} (${task.kind}) failed:`, err);
+      failed = true;
+      error = err;
+      runlog.append(task.id, `FAILED: ${err instanceof Error ? (err.stack ?? err.message) : err}`);
       if (task.attempts + 1 < config.management.maxTaskAttempts) {
         await queue.push({ ...task, attempts: task.attempts + 1 });
       } else {
@@ -54,6 +78,14 @@ export function startTask(task: Task, queue: ManagementQueue): void {
     })
     .finally(async () => {
       inFlight.delete(task.id);
+      runlog.end(task.id, failed);
+      records.report({
+        ...base,
+        status: failed ? "failed" : "done",
+        endedAt: new Date(),
+        error,
+        withLog: true,
+      });
       await queue.ack(task);
       if (await finishTask()) console.log("[mgmt] all work done — ledger and seen-URL set cleared");
       slotFreed();

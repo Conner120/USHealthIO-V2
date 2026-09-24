@@ -42,6 +42,62 @@ pub struct ScanStats {
 /// emitted in file order. Returns the parsed file header and element counts.
 ///
 /// `emit` returning `Err` aborts the scan (e.g. because every consumer has gone away).
+/// Recovers the file header without parsing any element, stopping as soon as `last_updated_on`
+/// is known. Carriers put the header members before the big arrays, so this normally touches a
+/// few KB; a file that puts the date last costs one structural walk (skip only, no decoding).
+///
+/// Used to learn the publication date before pass 1 starts writing rows, so provider references
+/// can be streamed to the sink instead of being buffered until the scan returns the header.
+pub fn scan_header(buf: &[u8]) -> Result<FileHeader, ScanError> {
+    let mut header = FileHeader::default();
+    let mut pos = skip_ws(buf, 0);
+    if buf.get(pos) != Some(&b'{') {
+        return Err(err("expected top-level object"));
+    }
+    pos += 1;
+    loop {
+        pos = skip_ws(buf, pos);
+        match buf.get(pos) {
+            Some(b'}') => break,
+            Some(b',') => {
+                pos += 1;
+                continue;
+            }
+            Some(b'"') => {}
+            Some(b) => return Err(err(format!("unexpected byte {:?} at {}", *b as char, pos))),
+            None => return Err(err("unexpected EOF in top-level object")),
+        }
+        let key_end = string_end(buf, pos)?;
+        let key = &buf[pos + 1..key_end - 1];
+        pos = skip_ws(buf, key_end);
+        if buf.get(pos) != Some(&b':') {
+            return Err(err(format!("expected ':' at {}", pos)));
+        }
+        pos = skip_ws(buf, pos + 1);
+        match buf.get(pos) {
+            Some(b'"') => {
+                let end = string_end(buf, pos)?;
+                if let Ok(key) = std::str::from_utf8(key) {
+                    if let Ok(value) = serde_json::from_slice::<String>(&buf[pos..end]) {
+                        header.set(key, value);
+                    }
+                }
+                pos = end;
+            }
+            Some(_) => {
+                // A container (the provider_references / in_network arrays). If the date is
+                // already known there is nothing left worth walking for.
+                if header.last_updated_on.is_some() {
+                    return Ok(header);
+                }
+                pos = skip_value(buf, pos)?;
+            }
+            None => return Err(err("unexpected EOF after key")),
+        }
+    }
+    Ok(header)
+}
+
 pub fn scan<F>(
     buf: &[u8],
     sections: &[Section],

@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.44.1", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { version = "1.44.1", features = ["rt", "rt-multi-thread", "macros", "time"] }
 rdkafka = "0.38.0"
 serde = { version = "1.0.228", features = ["derive"] }
 protobuf = "2.28.0"
@@ -19,6 +19,8 @@ serde_json = "1"
 memmap2 = "0.9"
 memchr = "2"
 flume = "0.11"
+dashmap = "6"
+xxhash-rust = { version = "0.8", features = ["xxh64"] }
 
 [[bin]]
 name = "main"

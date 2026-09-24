@@ -2,6 +2,7 @@
 //! and wired up in `pipeline.rs`.
 
 pub mod clickhouse;
+pub mod retry;
 pub mod rabbitmq;
 
 /// Counters reported back by a sink when it finishes.
